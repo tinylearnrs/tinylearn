@@ -1,2 +1,3 @@
 # wsk
-WebAssembly and no_std stats kit like scikit-learn
+
+WebAssembly and `no_std` kit like scikit-learn
