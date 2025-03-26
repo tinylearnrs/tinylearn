@@ -123,7 +123,11 @@ fn lstsq(
     }
 
     // Compute coefficients: V * S⁻¹ * U^T * y
-    let coef = v.t().dot(&s_inv.dot(&u.t().dot(ys)));
+    let uty = u.t().dot(ys);
+    let uty = &uty.as_slice().unwrap()[..s_inv.nrows()];
+    let uty = Array1::from_shape_vec((s_inv.nrows(),), uty.to_vec()).unwrap();
+    let s_inv_uty = s_inv.dot(&uty);
+    let coef = v.t().dot(&s_inv_uty);
 
     // Calculate rank
     let rank = 3.0; // s.into_ndarray().iter().filter(|&&v| v > 1e-10).count() as f64;
