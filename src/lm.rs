@@ -108,11 +108,10 @@ fn lstsq(
     ys: &Array1<f64>,
 ) -> (Array1<f64>, Array1<f64>, Array1<f64>, Array1<f64>) {
     let xs_f = xs.view().into_faer();
-    // Compute the SVD of xs
     let svd = xs_f.svd().expect("SVD failed");
-    let u = svd.U();
+    let u = svd.U().into_ndarray();
     let s = svd.S();
-    let vt = svd.V();
+    let v = svd.V().into_ndarray();
 
     // Compute the pseudo-inverse solution.
     let mut s_inv = Array2::<f64>::zeros((s.dim(), s.dim()));
@@ -123,12 +122,8 @@ fn lstsq(
         }
     }
 
-    // Convert to ndarray and compute the solution.
-    let u_nd = u.into_ndarray();
-    let vt_nd = vt.into_ndarray();
-
     // Compute coefficients: V * S⁻¹ * U^T * y
-    let coef = vt_nd.t().dot(&s_inv.dot(&u_nd.t().dot(ys)));
+    let coef = v.t().dot(&s_inv.dot(&u.t().dot(ys)));
 
     // Calculate rank
     let rank = 3.0; // s.into_ndarray().iter().filter(|&&v| v > 1e-10).count() as f64;

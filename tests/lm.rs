@@ -36,10 +36,10 @@ fn test_linear_regression() {
     };
     let model = model.fit(&xs, &ys);
     tracing::info!("model: {:?}", model);
-    assert_abs_diff_eq!(model.intercept, 0., epsilon = 1e-6);
     assert_abs_diff_eq!(
         model.coefficients,
         &array![-0.51499, 0.51175],
         epsilon = 1e-6
     );
+    assert_abs_diff_eq!(model.intercept, 0., epsilon = 1e-6);
 }
