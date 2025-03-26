@@ -55,7 +55,7 @@ fn test_preprocess_data() {
     }
 
     let (_xs, ys, xs_offset, y_offset) = preprocess_data(&xs, &ys);
-    assert_eq!(y_offset, 6.0);
+    assert_eq!(y_offset, 6.);
     assert_eq!(xs_offset.into_raw_vec_and_offset().0, &[8.4, 8.6]);
-    assert_eq!(ys.into_raw_vec_and_offset().0, &[-6.0, -6.0, -6.0, -6.0, -6.0, -6.0]);
+    assert_eq!(ys.into_raw_vec_and_offset().0, &[-5., -2., 1., 2., 4.]);
 }
