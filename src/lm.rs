@@ -114,18 +114,16 @@ fn lstsq(
     let s = svd.S();
     let vt = svd.V();
 
-    // Compute the pseudo-inverse solution using faer's DiagRef
-    let s_diag = s.as_ref();
-    let mut s_inv = Array2::<f64>::zeros((s_diag.dim(), s_diag.dim()));
-    for i in 0..s_diag.dim().min(s_diag.dim()) {
-        let val = s_diag[i];
+    // Compute the pseudo-inverse solution.
+    let mut s_inv = Array2::<f64>::zeros((s.dim(), s.dim()));
+    for i in 0..s.dim() {
+        let val = s[i];
         if val > 1e-10 {
-            // s_inv.write(i, i, 1.0 / val);
             s_inv[(i, i)] = 1.0 / val;
         }
     }
 
-    // Convert to ndarray and compute the solution
+    // Convert to ndarray and compute the solution.
     let u_nd = u.into_ndarray();
     let vt_nd = vt.into_ndarray();
 
