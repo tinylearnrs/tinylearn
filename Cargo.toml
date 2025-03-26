@@ -1,13 +1,15 @@
 [package]
 name = "wsk"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 
 [dependencies]
 approx = "0.5.1"
 ndarray = { version = "0.16.1", default-features = false, features = ["approx", "serde"] }
 serde = "1.0"
 tracing = "0.1.41"
+libc = { version = "0.2.155", default-features = false }
+faer = { git = "https://github.com/sarah-quinones/faer-rs", default-features = false }
 
 [dev-dependencies]
 csv = "1.3"

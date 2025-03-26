@@ -102,7 +102,9 @@ impl LinearRegression {
     pub fn fit(&self, xs: &ArrayD<f64>, ys: &Array1<f64>) -> LinearModel {
         let preprocessed = preprocess_data(xs, ys, self.fit_intercept);
 
-
+        // coef, _, rank, singular = lstsq(xs, ys);
+        // coef = np.ravel(coef)
+        // intercept = set_intercept(preprocesssed.x_offset, preprocessed.y_offset);
 
         LinearModel {
             intercept: preprocessed.y_offset,
