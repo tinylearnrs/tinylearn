@@ -30,6 +30,8 @@ print("preprocessed xs: ", xs)
 print("preprocessed y: ", y)
 
 model = LinearRegression(fit_intercept=True)
+xs = data[1:, 1:3]
+y = data[1:, 0]
 model.fit(xs, y)
 
 print("rank:", model.rank_)
