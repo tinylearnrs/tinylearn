@@ -34,7 +34,14 @@ fn preprocess_data(xs: &Array2<f64>, ys: &Array1<f64>, fit_intercept: bool) -> P
             y_offset,
         }
     } else {
-        todo!("fit_intercept is false")
+        let xs_offset = Array1::zeros(xs.ncols());
+        let y_offset = 0.0;
+        PreprocessedData {
+            xs,
+            ys,
+            xs_offset,
+            y_offset,
+        }
     }
 }
 

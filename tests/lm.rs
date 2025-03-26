@@ -42,4 +42,16 @@ fn test_linear_regression() {
         epsilon = 1e-3
     );
     assert_abs_diff_eq!(model.intercept, 19.24392220, epsilon = 1e-8);
+
+    let model = lm::LinearRegression {
+        fit_intercept: false,
+    };
+    let model = model.fit(&xs, &ys);
+    tracing::info!("model: {:?}", model);
+    assert_abs_diff_eq!(
+        model.coefficients,
+        &array![1.95896584 -0.20944023],
+        epsilon = 1e-7
+    );
+    assert_abs_diff_eq!(model.intercept, 0.0, epsilon = 1e-8);
 }
