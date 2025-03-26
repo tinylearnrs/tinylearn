@@ -1,0 +1,63 @@
+name: check
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: rustup update stable
+      - run: rustup default stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: 'test'
+
+      - run: cargo test --all-features
+
+  typos:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: crate-ci/typos@master
+        with:
+          files: '.'
+
+  fmt:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup update stable
+      - run: rustup default stable
+      - run: rustup component add rustfmt
+      - run: cargo fmt --all --check
+
+  clippy:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup update stable
+      - run: rustup default stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: 'clippy'
+      - run: cargo clippy --all --all-features -- -D warnings
