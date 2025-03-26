@@ -1,4 +1,3 @@
-use approx::assert_abs_diff_eq;
 use ndarray::Array1;
 use ndarray::ArrayD;
 use ndarray::Axis;
@@ -27,14 +26,14 @@ fn preprocess_data(
 
 #[test]
 fn test_preprocess_data() {
+    use ndarray::IxDyn;
+
     tracing_subscriber::fmt::init();
 
-    use ndarray::{Array1, ArrayD, IxDyn};
     let mut reader = csv::Reader::from_path("tests/basic.csv").unwrap();
 
     let headers = reader.headers().unwrap().clone();
 
-    // Count the number of records to pre-allocate arrays
     let record_count = reader.records().count();
     reader = csv::Reader::from_path("tests/basic.csv").unwrap();
 
@@ -70,5 +69,5 @@ fn test_preprocess_data() {
     expected_xs[[3, 1]] = 2.4;
     expected_xs[[4, 0]] = 3.6;
     expected_xs[[4, 1]] = 5.4;
-    assert_abs_diff_eq!(xs, expected_xs, epsilon = 1e-6);
+    approx::assert_abs_diff_eq!(xs, expected_xs, epsilon = 1e-6);
 }
