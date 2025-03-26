@@ -12,10 +12,8 @@ fn preprocess_data(
     let mut y = y.to_owned();
 
     let mut xs_offset = Array1::<f64>::zeros(n_features);
-
-    xs_offset = Array1::<f64>::zeros(n_features);
     for i in 0..n_features {
-        xs_offset[i] /= n_samples as f64;
+        xs_offset[i] = xs.mean_axis(Axis(0)).unwrap()[i];
     }
     for mut row in xs.axis_iter_mut(Axis(0)) {
         for (i, x) in row.iter_mut().enumerate() {
