@@ -32,6 +32,7 @@ print("preprocessed y: ", y)
 model = LinearRegression(fit_intercept=True)
 model.fit(xs, y)
 
+print("rank:", model.rank_)
 print("coefficients:", model.coef_)
-print("intercept:", round(model.intercept_, 2))
+print("intercept:", model.intercept_)
 
