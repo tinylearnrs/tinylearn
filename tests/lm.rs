@@ -1,10 +1,10 @@
+use approx::assert_abs_diff_eq;
+use ndarray::array;
 use ndarray::Array1;
 use ndarray::ArrayD;
 use ndarray::Axis;
 use ndarray::IxDyn;
-use ndarray::array;
 use wsk::lm;
-use approx::assert_abs_diff_eq;
 
 #[test]
 fn test_linear_regression() {
@@ -32,9 +32,15 @@ fn test_linear_regression() {
     }
     tracing::info!("ys: {:?}", ys);
 
-    let model = lm::LinearRegression { fit_intercept: true };
+    let model = lm::LinearRegression {
+        fit_intercept: true,
+    };
     let model = model.fit(&xs, &ys);
     tracing::info!("model: {:?}", model);
     assert_abs_diff_eq!(model.intercept, 0., epsilon = 1e-6);
-    assert_abs_diff_eq!(model.coefficients, &array![-0.51499, 0.51175], epsilon = 1e-6);
+    assert_abs_diff_eq!(
+        model.coefficients,
+        &array![-0.51499, 0.51175],
+        epsilon = 1e-6
+    );
 }

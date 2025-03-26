@@ -1,15 +1,16 @@
+use faer_ext::*;
 use ndarray::Array1;
+use ndarray::Array2;
 use ndarray::ArrayD;
 use ndarray::Axis;
-
 struct PreprocessedData {
-    xs: ArrayD<f64>,
+    xs: Array2<f64>,
     ys: Array1<f64>,
-    xs_offset: ArrayD<f64>,
+    xs_offset: Array1<f64>,
     y_offset: f64,
 }
 
-fn preprocess_data(xs: &ArrayD<f64>, ys: &Array1<f64>, fit_intercept: bool) -> PreprocessedData {
+fn preprocess_data(xs: &Array2<f64>, ys: &Array1<f64>, fit_intercept: bool) -> PreprocessedData {
     let mut xs = xs.to_owned();
     let mut ys = ys.to_owned();
 
@@ -55,7 +56,7 @@ fn test_preprocess_data() {
     reader = csv::Reader::from_path("tests/basic.csv").unwrap();
 
     let mut ys = Array1::<f64>::zeros(record_count);
-    let mut xs = ArrayD::<f64>::zeros(IxDyn(&[record_count, headers.len() - 1]));
+    let mut xs = Array2::<f64>::zeros((record_count, headers.len() - 1));
 
     for (i, result) in reader.records().enumerate() {
         let record = result.unwrap();
@@ -71,10 +72,16 @@ fn test_preprocess_data() {
 
     let preprocessed = preprocess_data(&xs, &ys, true);
     assert_eq!(preprocessed.y_offset, 18.6);
-    assert_eq!(preprocessed.xs_offset.into_raw_vec_and_offset().0, &[9.2, 8.]);
+    assert_eq!(
+        preprocessed.xs_offset.into_raw_vec_and_offset().0,
+        &[9.2, 8.]
+    );
     let ys = preprocessed.ys.map(|y| round(*y, 3));
-    assert_eq!(ys.into_raw_vec_and_offset().0, &[-0.6, 1.4, -1.6, -0.6, 1.4]);
-    let mut expected_xs = ArrayD::zeros(IxDyn(&[5, 2]));
+    assert_eq!(
+        ys.into_raw_vec_and_offset().0,
+        &[-0.6, 1.4, -1.6, -0.6, 1.4]
+    );
+    let mut expected_xs = Array2::zeros((5, 2));
     expected_xs[[0, 0]] = -4.2;
     expected_xs[[0, 1]] = -4.;
     expected_xs[[1, 0]] = -3.2;
@@ -96,6 +103,38 @@ pub struct LinearModel {
 
 pub struct LinearRegression {
     pub fit_intercept: bool,
+}
+
+fn lstsq(
+    xs: &Array2<f64>,
+    ys: &Array1<f64>,
+) -> (Array1<f64>, Array1<f64>, Array1<f64>, Array1<f64>) {
+    // Convert ArrayD to Array2 for matrix operations
+    let n_samples = xs.shape()[0];
+    let n_features = xs.shape()[1];
+    // let xs_mat = xs.clone().into_shape((n_samples, n_features)).unwrap();
+
+    let tmp = ndarray::Array2::<f64>::zeros((n_samples, n_features));
+    let xs_f = tmp.view().into_faer();
+    // Compute the SVD of xs
+    let svd = xs_f.svd(true, true).unwrap();
+    let u = svd.u.unwrap();
+    let s = svd.s;
+    let vt = svd.vt.unwrap();
+
+    // Compute the pseudo-inverse solution
+    let s_recip = s.mapv(|v| if v > 1e-10 { 1.0 / v } else { 0.0 });
+    let uh_y = u.t().dot(ys);
+    let coef = vt.t().dot(&(&s_recip * &uh_y));
+
+    // Calculate rank
+    let rank = s.iter().filter(|&&v| v > 1e-10).count() as f64;
+    let rank_array = Array1::from_elem(1, rank);
+
+    // Return the coefficients, residuals, rank, and singular values
+    let residuals = ys - &xs_mat.dot(&coef);
+
+    (coef, residuals, rank_array, s)
 }
 
 impl LinearRegression {
