@@ -103,10 +103,13 @@ pub struct LinearRegression {
     pub fit_intercept: bool,
 }
 
-fn lstsq(
-    xs: &Array2<f64>,
-    ys: &Array1<f64>,
-) -> (Array1<f64>, Array1<f64>, Array1<f64>, Array1<f64>) {
+pub struct LsqsqResult {
+    pub coef: Array1<f64>,
+    pub residuals: Array1<f64>,
+    pub ys: Array1<f64>,
+}
+
+fn lstsq(xs: &Array2<f64>, ys: &Array1<f64>) -> LsqsqResult {
     let xs_f = xs.view().into_faer();
     let svd = xs_f.svd().expect("SVD failed");
     let u = svd.U().into_ndarray();
@@ -129,27 +132,29 @@ fn lstsq(
     let s_inv_uty = s_inv.dot(&uty);
     let coef = v.t().dot(&s_inv_uty);
 
-    // Calculate rank
-    let rank = 3.0; // s.into_ndarray().iter().filter(|&&v| v > 1e-10).count() as f64;
-    let rank_array = Array1::from_elem(1, rank);
-
-    // Return the coefficients, residuals, rank, and singular values
     let residuals = ys - &xs_f.into_ndarray().dot(&coef);
 
-    (coef, residuals, rank_array, ys.clone())
+    LsqsqResult {
+        coef,
+        residuals,
+        ys: ys.clone(),
+    }
 }
 
 impl LinearRegression {
     pub fn fit(&self, xs: &Array2<f64>, ys: &Array1<f64>) -> LinearModel {
         let preprocessed = preprocess_data(xs, ys, self.fit_intercept);
 
-        let (coef, residuals, rank, ys) = lstsq(xs, ys);
-        // coef = np.ravel(coef)
-        // intercept = set_intercept(preprocesssed.x_offset, preprocessed.y_offset);
+        let lsqsq_result = lstsq(&preprocessed.xs, &preprocessed.ys);
+        let intercept = if self.fit_intercept {
+            preprocessed.y_offset - preprocessed.xs_offset.dot(&lsqsq_result.coef)
+        } else {
+            0.0
+        };
 
         LinearModel {
-            intercept: preprocessed.y_offset,
-            coefficients: coef,
+            intercept,
+            coefficients: lsqsq_result.coef,
         }
     }
 }
