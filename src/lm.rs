@@ -2,26 +2,39 @@ use ndarray::Array1;
 use ndarray::ArrayD;
 use ndarray::Axis;
 
-fn preprocess_data(
-    xs: &ArrayD<f64>,
-    ys: &Array1<f64>,
-) -> (ArrayD<f64>, Array1<f64>, ArrayD<f64>, f64) {
+struct PreprocessedData {
+    xs: ArrayD<f64>,
+    ys: Array1<f64>,
+    xs_offset: ArrayD<f64>,
+    y_offset: f64,
+}
+
+fn preprocess_data(xs: &ArrayD<f64>, ys: &Array1<f64>, fit_intercept: bool) -> PreprocessedData {
     let mut xs = xs.to_owned();
     let mut ys = ys.to_owned();
 
-    let xs_offset = xs.mean_axis(Axis(0)).unwrap();
-    for mut row in xs.axis_iter_mut(Axis(0)) {
-        for (i, x) in row.iter_mut().enumerate() {
-            *x -= xs_offset[i];
+    if fit_intercept {
+        let xs_offset = xs.mean_axis(Axis(0)).unwrap();
+        for mut row in xs.axis_iter_mut(Axis(0)) {
+            for (i, x) in row.iter_mut().enumerate() {
+                *x -= xs_offset[i];
+            }
         }
-    }
 
-    let y_offset = ys.mean().unwrap();
-    for y in ys.iter_mut() {
-        *y -= y_offset;
-    }
+        let y_offset = ys.mean().unwrap();
+        for y in ys.iter_mut() {
+            *y -= y_offset;
+        }
 
-    (xs, ys, xs_offset, y_offset)
+        PreprocessedData {
+            xs,
+            ys,
+            xs_offset,
+            y_offset,
+        }
+    } else {
+        todo!()
+    }
 }
 
 #[test]
@@ -54,10 +67,10 @@ fn test_preprocess_data() {
         tracing::info!("y: {y}");
     }
 
-    let (xs, ys, xs_offset, y_offset) = preprocess_data(&xs, &ys);
-    assert_eq!(y_offset, 6.);
-    assert_eq!(xs_offset.into_raw_vec_and_offset().0, &[8.4, 8.6]);
-    assert_eq!(ys.into_raw_vec_and_offset().0, &[-5., -2., 1., 2., 4.]);
+    let preprocessed_data = preprocess_data(&xs, &ys, true);
+    assert_eq!(preprocessed_data.y_offset, 6.);
+    assert_eq!(preprocessed_data.xs_offset.into_raw_vec_and_offset().0, &[8.4, 8.6]);
+    assert_eq!(preprocessed_data.ys.into_raw_vec_and_offset().0, &[-5., -2., 1., 2., 4.]);
     let mut expected_xs = ArrayD::zeros(IxDyn(&[5, 2]));
     expected_xs[[0, 0]] = -5.4;
     expected_xs[[0, 1]] = -4.6;
@@ -69,5 +82,5 @@ fn test_preprocess_data() {
     expected_xs[[3, 1]] = 2.4;
     expected_xs[[4, 0]] = 3.6;
     expected_xs[[4, 1]] = 5.4;
-    approx::assert_abs_diff_eq!(xs, expected_xs, epsilon = 1e-6);
+    approx::assert_abs_diff_eq!(preprocessed_data.xs, expected_xs, epsilon = 1e-6);
 }
