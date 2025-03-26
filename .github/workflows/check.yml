@@ -14,15 +14,23 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
       - run: rustup update stable
       - run: rustup default stable
-
       - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: 'test'
-
       - run: cargo test --all-features
+
+  wasm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup update stable
+      - run: rustup default stable
+      - run: rustup target add wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      # Smoke test.
+      - run: cargo build --target wasm32-unknown-unknown
 
   typos:
     runs-on: ubuntu-latest
