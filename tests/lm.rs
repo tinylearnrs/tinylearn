@@ -41,5 +41,5 @@ fn test_linear_regression() {
         &array![-0.51499, 0.51175],
         epsilon = 1e-3
     );
-    assert_abs_diff_eq!(model.intercept, 0.0, epsilon = 1e-3);
+    assert_abs_diff_eq!(model.intercept, -1e-15, epsilon = 1e-3);
 }

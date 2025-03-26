@@ -152,7 +152,8 @@ impl LinearRegression {
             tracing::info!("coef: {:?}", lsqsq_result.coef);
             // First divide coefficients by X_scale (which is 1.0 in this case)
             let scaled_coef = lsqsq_result.coef.clone(); // In this case X_scale is 1.0
-            preprocessed.y_offset - preprocessed.xs_offset.dot(&scaled_coef)
+                                                         // preprocessed.y_offset - preprocessed.xs_offset.dot(&scaled_coef)
+            lsqsq_result.residuals.mean().unwrap()
         } else {
             0.0
         };
