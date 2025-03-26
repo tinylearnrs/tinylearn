@@ -9,22 +9,18 @@
 
 from sklearn.linear_model import LinearRegression
 from sklearn.linear_model._base import _preprocess_data
-import csv
-import numpy as np
 import os
+from numpy import genfromtxt
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
+csv_path = os.path.join(script_dir, 'basic.csv')
 
-with open(os.path.join(script_dir, 'basic.csv'), 'r') as file:
-    reader = csv.reader(file)
-    data = list(reader)
-    # Skip the header row
-    header = data[0]
-    data = data[1:]
+data = genfromtxt(csv_path, delimiter=',')
+xs = data[1:, 1:3]
+y = data[1:, 0]
 
-xs = np.array([[float(x) for x in row[:-1]] for row in data])
-y = np.array([float(row[-1]) for row in data])
-
+print("y: ", y)
+print("xs: ", xs)
 xs, y, xs_offset, y_offset, xs_scale = _preprocess_data(xs, y, fit_intercept=True)
 
 print("xs_offset:", xs_offset)

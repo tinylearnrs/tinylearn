@@ -1,5 +1,4 @@
 use ndarray::Array1;
-use ndarray::Array2;
 use ndarray::ArrayD;
 use ndarray::Axis;
 
@@ -13,24 +12,22 @@ fn preprocess_data(
     let mut y = y.to_owned();
 
     let mut xs_offset = Array1::<f64>::zeros(n_features);
-    let mut y_offset = 0.0;
-    let fit_intercept = true;
-    if fit_intercept {
-        xs_offset = Array1::<f64>::zeros(n_features);
-        for i in 0..n_features {
-            xs_offset[i] /= n_samples as f64;
-        }
-        for mut row in xs.axis_iter_mut(Axis(0)) {
-            for (i, x) in row.iter_mut().enumerate() {
-                *x -= xs_offset[i];
-            }
-        }
 
-        // let xs_offset = xs_offset.mean_axis(Axis(0)).unwrap().to_owned();
-        y_offset = y.sum() / n_samples as f64;
-        for y in y.iter_mut() {
-            *y -= y_offset;
+    xs_offset = Array1::<f64>::zeros(n_features);
+    for i in 0..n_features {
+        xs_offset[i] /= n_samples as f64;
+    }
+    for mut row in xs.axis_iter_mut(Axis(0)) {
+        for (i, x) in row.iter_mut().enumerate() {
+            *x -= xs_offset[i];
         }
+    }
+
+    // let xs_offset = xs_offset.mean_axis(Axis(0)).unwrap().to_owned();
+    tracing::info!("n_samples: {:?}", n_samples);
+    let y_offset = y.sum() / n_samples as f64;
+    for y in y.iter_mut() {
+        *y -= y_offset;
     }
 
     (xs, y, xs_offset, y_offset)
@@ -38,6 +35,8 @@ fn preprocess_data(
 
 #[test]
 fn test_preprocess_data() {
+    tracing_subscriber::fmt::init();
+
     use ndarray::{Array1, ArrayD, IxDyn};
     let mut reader = csv::Reader::from_path("tests/basic.csv").unwrap();
 
@@ -61,10 +60,14 @@ fn test_preprocess_data() {
             xs[[i, j - 1]] = record[j].parse::<f64>().unwrap();
         }
     }
+    for row in xs.axis_iter(Axis(0)) {
+        tracing::info!("row: {:?}", row);
+    }
+    for y in y.iter() {
+        tracing::info!("y: {y}");
+    }
 
-    let (xs, y, xs_offset, y_offset) = preprocess_data(&xs, &y);
-    let mut expected = Array1::<f64>::zeros(2);
-    expected[0] = 6.0;
-    expected[1] = 8.4;
-    assert_eq!(xs_offset, expected);
+    let (_xs, _y, xs_offset, y_offset) = preprocess_data(&xs, &y);
+    assert_eq!(y_offset, 6.0);
+    assert_eq!(xs_offset.into_raw_vec_and_offset().0, &[8.4, 8.6]);
 }
