@@ -2,6 +2,7 @@ use faer_ext::*;
 use ndarray::Array1;
 use ndarray::Array2;
 use ndarray::Axis;
+
 struct PreprocessedData {
     xs: Array2<f64>,
     ys: Array1<f64>,
@@ -110,13 +111,26 @@ fn lstsq(
     // Compute the SVD of xs
     let svd = xs_f.svd().expect("SVD failed");
     let u = svd.U();
-    // let s = svd.S();
+    let s = svd.S();
     let vt = svd.V();
 
-    // Compute the pseudo-inverse solution
-    let s_recip = ys.clone(); // s.mapv(|v| if v > 1e-10 { 1.0 / v } else { 0.0 });
-    let uh_y = u.into_ndarray().t().dot(ys);
-    let coef = vt.into_ndarray().t().dot(&(&s_recip * &uh_y));
+    // Compute the pseudo-inverse solution using faer's DiagRef
+    let s_diag = s.as_ref();
+    let mut s_inv = Array2::<f64>::zeros((s_diag.dim(), s_diag.dim()));
+    for i in 0..s_diag.dim().min(s_diag.dim()) {
+        let val = s_diag[i];
+        if val > 1e-10 {
+            // s_inv.write(i, i, 1.0 / val);
+            s_inv[(i, i)] = 1.0 / val;
+        }
+    }
+
+    // Convert to ndarray and compute the solution
+    let u_nd = u.into_ndarray();
+    let vt_nd = vt.into_ndarray();
+
+    // Compute coefficients: V * S⁻¹ * U^T * y
+    let coef = vt_nd.t().dot(&s_inv.dot(&u_nd.t().dot(ys)));
 
     // Calculate rank
     let rank = 3.0; // s.into_ndarray().iter().filter(|&&v| v > 1e-10).count() as f64;
@@ -132,13 +146,13 @@ impl LinearRegression {
     pub fn fit(&self, xs: &Array2<f64>, ys: &Array1<f64>) -> LinearModel {
         let preprocessed = preprocess_data(xs, ys, self.fit_intercept);
 
-        // coef, _, rank, singular = lstsq(xs, ys);
+        let (coef, residuals, rank, ys) = lstsq(xs, ys);
         // coef = np.ravel(coef)
         // intercept = set_intercept(preprocesssed.x_offset, preprocessed.y_offset);
 
         LinearModel {
             intercept: preprocessed.y_offset,
-            coefficients: Array1::zeros(xs.shape()[1]),
+            coefficients: coef,
         }
     }
 }
