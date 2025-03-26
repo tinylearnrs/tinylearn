@@ -67,10 +67,10 @@ fn test_preprocess_data() {
         tracing::info!("y: {y}");
     }
 
-    let preprocessed_data = preprocess_data(&xs, &ys, true);
-    assert_eq!(preprocessed_data.y_offset, 6.);
-    assert_eq!(preprocessed_data.xs_offset.into_raw_vec_and_offset().0, &[8.4, 8.6]);
-    assert_eq!(preprocessed_data.ys.into_raw_vec_and_offset().0, &[-5., -2., 1., 2., 4.]);
+    let preprocessed = preprocess_data(&xs, &ys, true);
+    assert_eq!(preprocessed.y_offset, 6.);
+    assert_eq!(preprocessed.xs_offset.into_raw_vec_and_offset().0, &[8.4, 8.6]);
+    assert_eq!(preprocessed.ys.into_raw_vec_and_offset().0, &[-5., -2., 1., 2., 4.]);
     let mut expected_xs = ArrayD::zeros(IxDyn(&[5, 2]));
     expected_xs[[0, 0]] = -5.4;
     expected_xs[[0, 1]] = -4.6;
@@ -82,5 +82,5 @@ fn test_preprocess_data() {
     expected_xs[[3, 1]] = 2.4;
     expected_xs[[4, 0]] = 3.6;
     expected_xs[[4, 1]] = 5.4;
-    approx::assert_abs_diff_eq!(preprocessed_data.xs, expected_xs, epsilon = 1e-6);
+    approx::assert_abs_diff_eq!(preprocessed.xs, expected_xs, epsilon = 1e-6);
 }
