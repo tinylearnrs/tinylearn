@@ -1,3 +1,4 @@
+use approx::assert_abs_diff_eq;
 use ndarray::Array1;
 use ndarray::ArrayD;
 use ndarray::Axis;
@@ -54,8 +55,20 @@ fn test_preprocess_data() {
         tracing::info!("y: {y}");
     }
 
-    let (_xs, ys, xs_offset, y_offset) = preprocess_data(&xs, &ys);
+    let (xs, ys, xs_offset, y_offset) = preprocess_data(&xs, &ys);
     assert_eq!(y_offset, 6.);
     assert_eq!(xs_offset.into_raw_vec_and_offset().0, &[8.4, 8.6]);
     assert_eq!(ys.into_raw_vec_and_offset().0, &[-5., -2., 1., 2., 4.]);
+    let mut expected_xs = ArrayD::zeros(IxDyn(&[5, 2]));
+    expected_xs[[0, 0]] = -5.4;
+    expected_xs[[0, 1]] = -4.6;
+    expected_xs[[1, 0]] = -2.4;
+    expected_xs[[1, 1]] = -3.6;
+    expected_xs[[2, 0]] = 0.6;
+    expected_xs[[2, 1]] = 0.4;
+    expected_xs[[3, 0]] = 3.6;
+    expected_xs[[3, 1]] = 2.4;
+    expected_xs[[4, 0]] = 3.6;
+    expected_xs[[4, 1]] = 5.4;
+    assert_abs_diff_eq!(xs, expected_xs, epsilon = 1e-6);
 }
