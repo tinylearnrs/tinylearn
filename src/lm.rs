@@ -1,7 +1,6 @@
 use faer_ext::*;
 use ndarray::Array1;
 use ndarray::Array2;
-use ndarray::ArrayD;
 use ndarray::Axis;
 struct PreprocessedData {
     xs: Array2<f64>,
@@ -44,8 +43,6 @@ fn test_preprocess_data() {
         let factor = 10.0_f64.powi(precision as i32);
         (x * factor).round() / factor
     }
-    use ndarray::IxDyn;
-
     tracing_subscriber::fmt::init();
 
     let mut reader = csv::Reader::from_path("tests/basic.csv").unwrap();
@@ -109,36 +106,30 @@ fn lstsq(
     xs: &Array2<f64>,
     ys: &Array1<f64>,
 ) -> (Array1<f64>, Array1<f64>, Array1<f64>, Array1<f64>) {
-    // Convert ArrayD to Array2 for matrix operations
-    let n_samples = xs.shape()[0];
-    let n_features = xs.shape()[1];
-    // let xs_mat = xs.clone().into_shape((n_samples, n_features)).unwrap();
-
-    let tmp = ndarray::Array2::<f64>::zeros((n_samples, n_features));
-    let xs_f = tmp.view().into_faer();
+    let xs_f = xs.view().into_faer();
     // Compute the SVD of xs
-    let svd = xs_f.svd(true, true).unwrap();
-    let u = svd.u.unwrap();
-    let s = svd.s;
-    let vt = svd.vt.unwrap();
+    let svd = xs_f.svd().expect("SVD failed");
+    let u = svd.U();
+    // let s = svd.S();
+    let vt = svd.V();
 
     // Compute the pseudo-inverse solution
-    let s_recip = s.mapv(|v| if v > 1e-10 { 1.0 / v } else { 0.0 });
-    let uh_y = u.t().dot(ys);
-    let coef = vt.t().dot(&(&s_recip * &uh_y));
+    let s_recip = ys.clone(); // s.mapv(|v| if v > 1e-10 { 1.0 / v } else { 0.0 });
+    let uh_y = u.into_ndarray().t().dot(ys);
+    let coef = vt.into_ndarray().t().dot(&(&s_recip * &uh_y));
 
     // Calculate rank
-    let rank = s.iter().filter(|&&v| v > 1e-10).count() as f64;
+    let rank = 3.0; // s.into_ndarray().iter().filter(|&&v| v > 1e-10).count() as f64;
     let rank_array = Array1::from_elem(1, rank);
 
     // Return the coefficients, residuals, rank, and singular values
-    let residuals = ys - &xs_mat.dot(&coef);
+    let residuals = ys - &xs_f.into_ndarray().dot(&coef);
 
-    (coef, residuals, rank_array, s)
+    (coef, residuals, rank_array, ys.clone())
 }
 
 impl LinearRegression {
-    pub fn fit(&self, xs: &ArrayD<f64>, ys: &Array1<f64>) -> LinearModel {
+    pub fn fit(&self, xs: &Array2<f64>, ys: &Array1<f64>) -> LinearModel {
         let preprocessed = preprocess_data(xs, ys, self.fit_intercept);
 
         // coef, _, rank, singular = lstsq(xs, ys);

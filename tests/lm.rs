@@ -1,9 +1,8 @@
 use approx::assert_abs_diff_eq;
 use ndarray::array;
 use ndarray::Array1;
-use ndarray::ArrayD;
+use ndarray::Array2;
 use ndarray::Axis;
-use ndarray::IxDyn;
 use wsk::lm;
 
 #[test]
@@ -18,7 +17,7 @@ fn test_linear_regression() {
     reader = csv::Reader::from_path("tests/basic.csv").unwrap();
 
     let mut ys = Array1::<f64>::zeros(record_count);
-    let mut xs = ArrayD::<f64>::zeros(IxDyn(&[record_count, headers.len() - 1]));
+    let mut xs = Array2::<f64>::zeros((record_count, headers.len() - 1));
 
     for (i, result) in reader.records().enumerate() {
         let record = result.unwrap();
