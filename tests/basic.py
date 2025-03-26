@@ -26,6 +26,8 @@ xs, y, xs_offset, y_offset, xs_scale = _preprocess_data(xs, y, fit_intercept=Tru
 print("xs_offset:", xs_offset)
 print("y_offset:", y_offset)
 print("xs_scale:", xs_scale)
+print("xs: ", xs)
+print("y: ", y)
 
 model = LinearRegression(fit_intercept=True)
 model.fit(xs, y)
