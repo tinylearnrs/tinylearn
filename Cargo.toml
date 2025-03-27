@@ -1,7 +1,13 @@
 [package]
 name = "tinylearn"
+description = "Machine learning in WebAssembly and no_std environments"
 version = "0.1.0"
 edition = "2021"
+documentation = "https://docs.rs/tinylearn"
+repository = "https://github.com/tinylearnrs/tinylearn"
+keywords = ["machine-learning", "algorithms", "no_std"]
+categories = ["science", "mathematics", "algorithms", "wasm"]
+license = "BSD-3-Clause"
 
 [dependencies]
 approx = "0.5.1"
