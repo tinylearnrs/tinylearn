@@ -1,3 +1,4 @@
+use faer::linalg::solvers::SolveLstsqCore;
 use faer_ext::*;
 use ndarray::Array1;
 use ndarray::Array2;
@@ -34,7 +35,14 @@ fn preprocess_data(xs: &Array2<f64>, ys: &Array1<f64>, fit_intercept: bool) -> P
             y_offset,
         }
     } else {
-        todo!("fit_intercept is false")
+        let xs_offset = Array1::zeros(xs.ncols());
+        let y_offset = 0.0;
+        PreprocessedData {
+            xs,
+            ys,
+            xs_offset,
+            y_offset,
+        }
     }
 }
 
@@ -106,43 +114,32 @@ pub struct LinearRegression {
 pub struct LsqsqResult {
     pub coef: Array1<f64>,
     pub residuals: Array1<f64>,
-    pub ys: Array1<f64>,
 }
 
 fn lstsq(xs: &Array2<f64>, ys: &Array1<f64>) -> LsqsqResult {
     let xs_f = xs.view().into_faer();
-    let svd = xs_f.svd().expect("SVD failed");
-    let u = svd.U().into_ndarray();
-    let s = svd.S();
-    let v = svd.V().into_ndarray();
+    let xs_qr = xs_f.cloned();
 
-    // Compute the pseudo-inverse solution.
-    let mut s_inv = Array2::<f64>::zeros((s.dim(), s.dim()));
-    for i in 0..s.dim() {
-        let val = s[i];
-        if val > 1e-10 {
-            s_inv[(i, i)] = 1.0 / val;
-        }
-    }
+    let solution = ys.clone().into_shape_clone((ys.dim(), 1));
+    let solution = solution.expect("Failed to clone ys into shape");
+    let mut solution_f = solution.view().into_faer().to_owned();
+    let solution_mut = solution_f.as_mut();
 
-    // Compute coefficients: V * S⁻¹ * U^T * y
-    let uty = u.t().dot(ys);
-    let uty = &uty.as_slice().unwrap()[..s_inv.nrows()];
-    let uty = Array1::from_shape_vec((s_inv.nrows(),), uty.to_vec()).unwrap();
-    let s_inv_uty = s_inv.dot(&uty);
-    let coef = v.t().dot(&s_inv_uty);
-
-    let residuals = ys - &xs_f.into_ndarray().dot(&coef);
-
-    LsqsqResult {
-        coef,
-        residuals,
-        ys: ys.clone(),
-    }
+    let qr = xs_qr.qr();
+    let conj = faer::Conj::No;
+    qr.solve_lstsq_in_place_with_conj(conj, solution_mut);
+    let coef = solution_f.subrows(0, xs.ncols());
+    let coef = coef.into_ndarray().to_owned();
+    let residuals = ys - &xs.dot(&coef);
+    let coef = Array1::from_iter(coef);
+    let residuals = Array1::from_iter(residuals);
+    LsqsqResult { coef, residuals }
 }
 
 impl LinearRegression {
     pub fn fit(&self, xs: &Array2<f64>, ys: &Array1<f64>) -> LinearModel {
+        // This doesn't add a 1s column to the data because the data was already
+        // centered. This is faster than adding the column.
         let preprocessed = preprocess_data(xs, ys, self.fit_intercept);
 
         let lsqsq_result = lstsq(&preprocessed.xs, &preprocessed.ys);
