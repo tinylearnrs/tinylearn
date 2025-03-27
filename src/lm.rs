@@ -102,28 +102,6 @@ fn test_preprocess_data() {
     approx::assert_abs_diff_eq!(preprocessed.xs, expected_xs, epsilon = 1e-6);
 }
 
-/// Ordinary least squares Linear Regression.
-///
-/// Fits a linear model with coefficients `w = (w1, ..., wp)` to minimize the
-/// residual sum of squares between the observed targets in the dataset, and the
-/// targets predicted by the linear approximation.
-#[derive(Clone, Debug, PartialEq)]
-pub struct LinearRegression {
-    /// Whether to fit the intercept (default: true).
-    ///
-    /// If set to `false`, no intercept will be used in calculations (i.e. data
-    /// is expected to be centered).
-    pub fit_intercept: bool,
-}
-
-impl Default for LinearRegression {
-    fn default() -> Self {
-        Self {
-            fit_intercept: true,
-        }
-    }
-}
-
 struct LsqsqResult {
     pub coef: Array1<f64>,
 }
@@ -144,6 +122,28 @@ fn lstsq(xs: &Array2<f64>, ys: &Array1<f64>) -> LsqsqResult {
     let coef = coef.into_ndarray().to_owned();
     let coef = Array1::from_iter(coef);
     LsqsqResult { coef }
+}
+
+/// Ordinary least squares Linear Regression.
+///
+/// Fits a linear model with coefficients `w = (w1, ..., wp)` to minimize the
+/// residual sum of squares between the observed targets in the dataset, and the
+/// targets predicted by the linear approximation.
+#[derive(Clone, Debug, Hash, PartialEq)]
+pub struct LinearRegression {
+    /// Whether to fit the intercept (default: true).
+    ///
+    /// If set to `false`, no intercept will be used in calculations (i.e. data
+    /// is expected to be centered).
+    pub fit_intercept: bool,
+}
+
+impl Default for LinearRegression {
+    fn default() -> Self {
+        Self {
+            fit_intercept: true,
+        }
+    }
 }
 
 /// Result of fitting the Linear Regression.
