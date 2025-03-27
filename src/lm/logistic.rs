@@ -93,7 +93,9 @@ impl Estimator for LogisticRegression {
         let penalty;
         let c_;
         match self.penalty {
-            LogisticRegressionPenalty::L2 => {}
+            LogisticRegressionPenalty::L2 => {
+                c_ = 1.0;
+            }
             LogisticRegressionPenalty::None => {
                 c_ = core::f64::MAX;
                 penalty = LogisticRegressionPenalty::L2;
@@ -116,8 +118,10 @@ impl Estimator for LogisticRegression {
 
         let intercepts;
         if self.fit_intercept {
-            intercepts = coefs.first().unwrap();
-            coefs = coefs.slice(s![1..]).to_owned();
+            // self.coef[:, -1]
+            intercepts = coefs.slice(s![0.., -1]).to_owned();
+            // self.coef[:, :-1]
+            coefs = coefs.slice(s![0.., ..-1]).to_owned();
         } else {
             intercepts = Array1::zeros(n_classes);
         }
