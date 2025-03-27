@@ -1,6 +1,4 @@
-use faer::linalg::solvers::SolveLstsq;
 use faer::linalg::solvers::SolveLstsqCore;
-use faer::prelude::*;
 use faer_ext::*;
 use ndarray::Array1;
 use ndarray::Array2;
@@ -120,34 +118,28 @@ pub struct LsqsqResult {
 
 fn lstsq(xs: &Array2<f64>, ys: &Array1<f64>) -> LsqsqResult {
     let xs_f = xs.view().into_faer();
-    // Create a copy for QR decomposition
     let xs_qr = xs_f.cloned();
-    // Create a mutable copy for the solution
+
     let solution = ys.clone().into_shape_clone((ys.dim(), 1));
-    let solution = solution.expect("Failed to clone ys");
+    let solution = solution.expect("Failed to clone ys into shape");
     let mut solution_f = solution.view().into_faer().to_owned();
     let solution_mut = solution_f.as_mut();
 
-    // We don't have to add a 1s column because the data was already centered.
-
-    // Perform QR decomposition and solve the least squares problem
     let qr = xs_qr.qr();
     let conj = faer::Conj::No;
     qr.solve_lstsq_in_place_with_conj(conj, solution_mut);
-    // let x = xs_f.as_ref().subrows(0, xs.nrows());
     let coef = solution_f.subrows(0, xs.ncols());
-    let coef = coef.into_ndarray();
-    let coef = coef.to_owned();
-    let ys2 = ys.clone();
-    let residuals = ys2 - &xs_f.into_ndarray().dot(&coef);
-    let coef = Array1::from_iter(coef.into_iter());
-    let residuals = Array1::from_iter(residuals.into_iter());
-
+    let coef = coef.into_ndarray().to_owned();
+    let residuals = ys - &xs.dot(&coef);
+    let coef = Array1::from_iter(coef);
+    let residuals = Array1::from_iter(residuals);
     LsqsqResult { coef, residuals }
 }
 
 impl LinearRegression {
     pub fn fit(&self, xs: &Array2<f64>, ys: &Array1<f64>) -> LinearModel {
+        // This doesn't add a 1s column to the data because the data was already
+        // centered. This is faster than adding the column.
         let preprocessed = preprocess_data(xs, ys, self.fit_intercept);
 
         let lsqsq_result = lstsq(&preprocessed.xs, &preprocessed.ys);
