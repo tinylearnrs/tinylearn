@@ -81,9 +81,14 @@ fn unique_values(data: &mut [f64]) -> &[f64] {
     &data[..write]
 }
 
+fn logistic_regression_path(xs: &Array2<f64>, ys: &Array1<f64>, class: f64) -> f64 {
+    todo!()
+}
+
 impl Estimator for LogisticRegression {
     type T = LogisticRegressionResult;
     type E = LogisticRegressionError;
+    #[allow(unused)]
     fn fit(&self, xs: &Array2<f64>, ys: &Array1<f64>) -> Result<Self::T, Self::E> {
         let penalty;
         let c_;
@@ -95,9 +100,27 @@ impl Estimator for LogisticRegression {
             }
         };
         let mut ys_ = ys.clone().as_slice_mut().unwrap().to_vec();
-        let classes = unique_values(&mut ys_);
+        let mut classes = unique_values(&mut ys_).to_vec();
         // let max_squared_sum = None;
-        let n_classes = classes.len();
+        let mut n_classes = classes.len();
+
+        if n_classes == 2 {
+            n_classes = 1;
+            classes = classes[1..].to_vec();
+        }
+
+        let mut coefs = Array2::<f64>::zeros((n_classes, xs.ncols()));
+        for (i, c) in classes.iter().enumerate() {
+            coefs[i] = logistic_regression_path(&xs, &ys, *c);
+        }
+
+        let intercepts;
+        if self.fit_intercept {
+            intercepts = coefs.first().unwrap();
+            coefs = coefs.slice(s![1..]).to_owned();
+        } else {
+            intercepts = Array1::zeros(n_classes);
+        }
 
         todo!()
     }
