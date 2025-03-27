@@ -1,7 +1,7 @@
 use approx::assert_abs_diff_eq;
 use ndarray::array;
-use tinylearn::lm::LogisticRegressionPenalty;
 use tinylearn::lm::LogisticRegression;
+use tinylearn::lm::LogisticRegressionPenalty;
 use tinylearn::Estimator;
 
 #[test]
@@ -26,6 +26,10 @@ fn test_logistic_regression() {
     };
     let fitresult = model.fit(&xs, &ys).unwrap();
     tracing::info!("fitresult: {:?}", fitresult);
-    assert_abs_diff_eq!(fitresult.coefficients, &array![4.86734, 0.037258], epsilon = 1e-3);
+    assert_abs_diff_eq!(
+        fitresult.coefficients,
+        &array![4.86734, 0.037258],
+        epsilon = 1e-3
+    );
     assert_abs_diff_eq!(fitresult.intercept, -14.52750, epsilon = 1e-3);
 }
