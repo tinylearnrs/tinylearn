@@ -144,8 +144,7 @@ impl LinearRegression {
 
         let lsqsq_result = lstsq(&preprocessed.xs, &preprocessed.ys);
         let intercept = if self.fit_intercept {
-            let mul = preprocessed.xs_offset.dot(&lsqsq_result.coef);
-            preprocessed.y_offset - mul
+            preprocessed.y_offset - preprocessed.xs_offset.dot(&lsqsq_result.coef)
         } else {
             0.0
         };
