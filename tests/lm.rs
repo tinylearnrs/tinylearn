@@ -4,6 +4,8 @@ use ndarray::Array1;
 use ndarray::Array2;
 use ndarray::Axis;
 use tinylearn::lm;
+use tinylearn::Estimator;
+use tinylearn::Predictor;
 
 #[test]
 fn test_linear_regression() {
@@ -34,25 +36,27 @@ fn test_linear_regression() {
     let model = lm::LinearRegression {
         fit_intercept: true,
     };
-    let fit_result = model.fit(&xs, &ys);
-    tracing::info!("fit_result: {:?}", fit_result);
+    let fitresult = model.fit(&xs, &ys).unwrap();
+    tracing::info!("fitresult: {:?}", fitresult);
     assert_abs_diff_eq!(
-        fit_result.coefficients,
+        fitresult.coefficients,
         &array![-0.51499, 0.51175],
         epsilon = 1e-3
     );
-    assert_abs_diff_eq!(fit_result.intercept, 19.24392220, epsilon = 1e-8);
+    assert_abs_diff_eq!(fitresult.intercept, 19.24392220, epsilon = 1e-8);
 
     let model2 = lm::LinearRegression {
         fit_intercept: false,
     };
     assert_ne!(model, model2);
-    let model2 = model2.fit(&xs, &ys);
-    tracing::info!("model2: {:?}", model2);
+    let fitresult2 = model2.fit(&xs, &ys).unwrap();
+    tracing::info!("fitresult2: {:?}", fitresult2);
     assert_abs_diff_eq!(
-        model2.coefficients,
+        fitresult2.coefficients,
         &array![1.95896584, -0.20944023],
         epsilon = 1e-7
     );
-    assert_abs_diff_eq!(model2.intercept, 0.0, epsilon = 1e-8);
+    assert_abs_diff_eq!(fitresult2.intercept, 0.0, epsilon = 1e-8);
+    let ps = fitresult2.predict(&array![[1.0, 2.0], [3.0, 4.0]]);
+    assert_abs_diff_eq!(ps, &array![1.54008, 5.03913], epsilon = 1e-4);
 }
