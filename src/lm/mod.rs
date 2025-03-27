@@ -1,4 +1,7 @@
 //! Generalized Linear Models.
+
+mod logistic;
+
 use crate::Estimator;
 use crate::Predictor;
 use faer::linalg::solvers::SolveLstsqCore;
