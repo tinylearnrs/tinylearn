@@ -1,3 +1,4 @@
+//! Generalized Linear Models.
 use faer::linalg::solvers::SolveLstsqCore;
 use faer_ext::*;
 use ndarray::Array1;
@@ -101,19 +102,18 @@ fn test_preprocess_data() {
     approx::assert_abs_diff_eq!(preprocessed.xs, expected_xs, epsilon = 1e-6);
 }
 
+/// Ordinary least squares Linear Regression.
+///
+/// Fits a linear model with coefficients `w = (w1, ..., wp)` to minimize the
+/// residual sum of squares between the observed targets in the dataset, and the
+/// targets predicted by the linear approximation.
 #[derive(Debug)]
-pub struct LinearModel {
-    pub intercept: f64,
-    pub coefficients: Array1<f64>,
-}
-
 pub struct LinearRegression {
     pub fit_intercept: bool,
 }
 
-pub struct LsqsqResult {
+struct LsqsqResult {
     pub coef: Array1<f64>,
-    pub residuals: Array1<f64>,
 }
 
 fn lstsq(xs: &Array2<f64>, ys: &Array1<f64>) -> LsqsqResult {
@@ -130,14 +130,20 @@ fn lstsq(xs: &Array2<f64>, ys: &Array1<f64>) -> LsqsqResult {
     qr.solve_lstsq_in_place_with_conj(conj, solution_mut);
     let coef = solution_f.subrows(0, xs.ncols());
     let coef = coef.into_ndarray().to_owned();
-    let residuals = ys - &xs.dot(&coef);
     let coef = Array1::from_iter(coef);
-    let residuals = Array1::from_iter(residuals);
-    LsqsqResult { coef, residuals }
+    LsqsqResult { coef }
+}
+
+/// Result of fitting the Linear Regression.
+#[derive(Debug)]
+pub struct LinearRegressionResult {
+    pub intercept: f64,
+    pub coefficients: Array1<f64>,
 }
 
 impl LinearRegression {
-    pub fn fit(&self, xs: &Array2<f64>, ys: &Array1<f64>) -> LinearModel {
+    /// Fit a linear model to the data.
+    pub fn fit(&self, xs: &Array2<f64>, ys: &Array1<f64>) -> LinearRegressionResult {
         // This doesn't add a 1s column to the data because the data was already
         // centered. This is faster than adding the column.
         let preprocessed = preprocess_data(xs, ys, self.fit_intercept);
@@ -149,7 +155,7 @@ impl LinearRegression {
             0.0
         };
 
-        LinearModel {
+        LinearRegressionResult {
             intercept,
             coefficients: lsqsq_result.coef,
         }
