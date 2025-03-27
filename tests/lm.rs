@@ -3,7 +3,7 @@ use ndarray::array;
 use ndarray::Array1;
 use ndarray::Array2;
 use ndarray::Axis;
-use wsk::lm;
+use tinylearn::lm;
 
 #[test]
 fn test_linear_regression() {
