@@ -3,7 +3,10 @@
 use crate::Estimator;
 use crate::Predictor;
 use faer::linalg::solvers::SolveLstsqCore;
+use thiserror::Error;
 use faer_ext::*;
+use ndarray::Array1;
+use ndarray::Array2;
 
 #[derive(Clone, Debug, Hash, PartialEq)]
 pub enum LogisticRegressionPenalty {
@@ -46,5 +49,32 @@ impl Default for LogisticRegression {
             fit_intercept: true,
             penalty: LogisticRegressionPenalty::L2,
         }
+    }
+}
+
+/// Result of fitting the Logistic Regression.
+#[derive(Clone, Debug, PartialEq)]
+pub struct LogisticRegressionResult {
+    pub coefficients: Array1<f64>,
+    pub intercept: f64,
+}
+
+#[derive(Error, Debug)]
+pub enum LogisticRegressionError {
+    #[error("Failed to fit model")]
+    FitError,
+}
+
+impl Estimator for LogisticRegression {
+    type T = LogisticRegressionResult;
+    type E = LogisticRegressionError;
+    fn fit(&self, xs: &Array2<f64>, ys: &Array1<f64>) -> Result<Self::T, Self::E> {
+        todo!()
+    }
+}
+
+impl Predictor for LogisticRegressionResult {
+    fn predict(&self, xs: &Array2<f64>) -> Array1<f64> {
+        xs.dot(&self.coefficients) + self.intercept
     }
 }

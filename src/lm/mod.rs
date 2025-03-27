@@ -2,6 +2,8 @@
 
 mod logistic;
 
+pub use logistic::*;
+
 use crate::Estimator;
 use crate::Predictor;
 use faer::linalg::solvers::SolveLstsqCore;
@@ -153,7 +155,7 @@ impl Default for LinearRegression {
 }
 
 /// Result of fitting the Linear Regression.
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct LinearRegressionResult {
     pub intercept: f64,
     pub coefficients: Array1<f64>,
