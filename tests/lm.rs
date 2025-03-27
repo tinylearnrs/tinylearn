@@ -34,24 +34,25 @@ fn test_linear_regression() {
     let model = lm::LinearRegression {
         fit_intercept: true,
     };
-    let model = model.fit(&xs, &ys);
-    tracing::info!("model: {:?}", model);
+    let fit_result = model.fit(&xs, &ys);
+    tracing::info!("fit_result: {:?}", fit_result);
     assert_abs_diff_eq!(
-        model.coefficients,
+        fit_result.coefficients,
         &array![-0.51499, 0.51175],
         epsilon = 1e-3
     );
-    assert_abs_diff_eq!(model.intercept, 19.24392220, epsilon = 1e-8);
+    assert_abs_diff_eq!(fit_result.intercept, 19.24392220, epsilon = 1e-8);
 
-    let model = lm::LinearRegression {
+    let model2 = lm::LinearRegression {
         fit_intercept: false,
     };
-    let model = model.fit(&xs, &ys);
-    tracing::info!("model: {:?}", model);
+    assert_ne!(model, model2);
+    let model2 = model2.fit(&xs, &ys);
+    tracing::info!("model2: {:?}", model2);
     assert_abs_diff_eq!(
-        model.coefficients,
+        model2.coefficients,
         &array![1.95896584, -0.20944023],
         epsilon = 1e-7
     );
-    assert_abs_diff_eq!(model.intercept, 0.0, epsilon = 1e-8);
+    assert_abs_diff_eq!(model2.intercept, 0.0, epsilon = 1e-8);
 }
