@@ -1,3 +1,3 @@
-# wsk
+# tinylearn
 
-WebAssembly and `no_std` kit like scikit-learn
+Machine learning in WebAssembly and no_std environments.
