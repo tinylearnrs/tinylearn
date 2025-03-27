@@ -1,10 +1,10 @@
+use faer::linalg::solvers::SolveLstsq;
+use faer::linalg::solvers::SolveLstsqCore;
+use faer::prelude::*;
 use faer_ext::*;
 use ndarray::Array1;
 use ndarray::Array2;
 use ndarray::Axis;
-use faer::prelude::*;
-use faer::linalg::solvers::SolveLstsq;
-use faer::linalg::solvers::SolveLstsqCore;
 
 struct PreprocessedData {
     xs: Array2<f64>,
@@ -127,9 +127,9 @@ fn lstsq(xs: &Array2<f64>, ys: &Array1<f64>) -> LsqsqResult {
     let solution = solution.expect("Failed to clone ys");
     let mut solution_f = solution.view().into_faer().to_owned();
     let solution_mut = solution_f.as_mut();
-    
+
     // We don't have to add a 1s column because the data was already centered.
-    
+
     // Perform QR decomposition and solve the least squares problem
     let qr = xs_qr.qr();
     let conj = faer::Conj::No;
@@ -138,17 +138,12 @@ fn lstsq(xs: &Array2<f64>, ys: &Array1<f64>) -> LsqsqResult {
     let coef = solution_f.subrows(0, xs.ncols());
     let coef = coef.into_ndarray();
     let coef = coef.to_owned();
-    tracing::info!("coef: {:?}", &coef);
     let ys2 = ys.clone();
     let residuals = ys2 - &xs_f.into_ndarray().dot(&coef);
     let coef = Array1::from_iter(coef.into_iter());
     let residuals = Array1::from_iter(residuals.into_iter());
 
-    tracing::info!("xs_f: {:?}", &xs_f.into_ndarray());
-    LsqsqResult {
-        coef,
-        residuals,
-    }
+    LsqsqResult { coef, residuals }
 }
 
 impl LinearRegression {

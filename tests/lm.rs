@@ -50,7 +50,7 @@ fn test_linear_regression() {
     tracing::info!("model: {:?}", model);
     assert_abs_diff_eq!(
         model.coefficients,
-        &array![1.95896584 -0.20944023],
+        &array![1.95896584, -0.20944023],
         epsilon = 1e-7
     );
     assert_abs_diff_eq!(model.intercept, 0.0, epsilon = 1e-8);
