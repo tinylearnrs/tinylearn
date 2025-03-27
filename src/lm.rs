@@ -1,12 +1,12 @@
 //! Generalized Linear Models.
 use crate::Estimator;
-use crate::EstimatorError;
 use crate::Predictor;
 use faer::linalg::solvers::SolveLstsqCore;
 use faer_ext::*;
 use ndarray::Array1;
 use ndarray::Array2;
 use ndarray::Axis;
+use thiserror::Error;
 
 struct PreprocessedData {
     xs: Array2<f64>,
@@ -156,10 +156,16 @@ pub struct LinearRegressionResult {
     pub coefficients: Array1<f64>,
 }
 
-impl Estimator for LinearRegression {
-    type ResultType = LinearRegressionResult;
+#[derive(Error, Debug)]
+pub enum LinearRegressionError {
+    #[error("Failed to fit model")]
+    FitError,
+}
 
-    fn fit(&self, xs: &Array2<f64>, ys: &Array1<f64>) -> Result<Self::ResultType, EstimatorError> {
+impl Estimator for LinearRegression {
+    type T = LinearRegressionResult;
+    type E = LinearRegressionError;
+    fn fit(&self, xs: &Array2<f64>, ys: &Array1<f64>) -> Result<Self::T, Self::E> {
         // This doesn't add a 1s column to the data because the data was already
         // centered. This is faster than adding the column.
         let preprocessed = preprocess_data(xs, ys, self.fit_intercept);
