@@ -34,7 +34,7 @@ pub enum LogisticRegressionPenalty {
 /// handle multinomial loss. 'liblinear' and 'newton-cholesky' only handle
 /// binary classification but can be extended to handle multiclass by using
 /// :class:`~sklearn.multiclass.OneVsRestClassifier`.
-#[derive(Clone, Debug, Hash, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct LogisticRegression {
     /// Whether to fit the intercept (default: true).
     ///
@@ -43,6 +43,11 @@ pub struct LogisticRegression {
     pub fit_intercept: bool,
     /// The penalty (regularization term) to use (default: [LogisticRegressionPenalty::L2]).
     pub penalty: LogisticRegressionPenalty,
+    /// Inverse of the regularization strength (default: 1.0).
+    ///
+    /// Must be a positive number. Like in support vector machines, smaller
+    /// values specify stronger regularization.
+    pub c: f64,
 }
 
 impl Default for LogisticRegression {
@@ -50,6 +55,7 @@ impl Default for LogisticRegression {
         Self {
             fit_intercept: true,
             penalty: LogisticRegressionPenalty::L2,
+            c: 1.0,
         }
     }
 }
@@ -89,6 +95,7 @@ struct LogisticRegressionPathArgs<'a> {
     class: f64,
     classes: &'a [f64],
     fit_intercept: bool,
+    c: f64,
 }
 
 fn loss_gradient(
@@ -143,24 +150,16 @@ fn loss_gradient(
     (loss, grad)
 }
 
-fn minimize(xs: &Array2<f64>, ys: &Array1<f64>, c: f64) -> f64 {
-    let sw_sum = 99.0;
-    let l2_reg_strength = 1.0 / (c * sw_sum);
+fn minimize(xs: &Array2<f64>, ys: &Array1<f64>, l2_reg_strength: f64) -> f64 {
     // v1.6.1 _logistic.py#429.
-    let f = |w: &Array1<f64>| {
-        let (loss, _) = loss_gradient(w, xs, ys, l2_reg_strength);
-        loss
-    };
+    let f = |w: &Array1<f64>| loss_gradient(w, xs, ys, l2_reg_strength).0;
     // v1.6.1 _logistic.py#471.
 
     // Use BFGS optimization to minimize the logistic regression loss function
     let n_features = xs.ncols();
     let x0 = Array1::<f64>::ones(n_features);
 
-    let g = |w: &Array1<f64>| {
-        let (_, grad) = loss_gradient(w, xs, ys, l2_reg_strength);
-        grad
-    };
+    let g = |w: &Array1<f64>| loss_gradient(w, xs, ys, l2_reg_strength).1;
 
     match crate::bfgs::bfgs(x0, f, g) {
         Ok(w_min) => {
@@ -192,13 +191,13 @@ fn logistic_regression_path(args: &LogisticRegressionPathArgs) -> f64 {
     // v1.6.1 _logistic.py#316
     let y_bin = args.ys.map(|y| if *y == *pos_class { 1.0 } else { 0.0 });
     // v1.6.1 _logistic.py#363
-    let mut w0 = Array2::<f64>::ones((n_classes, n_features));
+    // w0 is used for warm_start.
+    // let mut w0 = Array2::<f64>::ones((n_classes, n_features));
     // v1.6.1 _logistic.py#398
-    if n_classes == 1 {
-        w0.slice_mut(s![0, coef.len()]).assign(&-coef.clone());
-        w0.slice_mut(s![1, coef.len()]).assign(&coef);
-    }
-    tracing::info!("w0: {:?}", w0);
+    // if n_classes == 1 {
+    //     w0.slice_mut(s![0, coef.len()]).assign(&-coef.clone());
+    //     w0.slice_mut(s![1, coef.len()]).assign(&coef);
+    // }
     let sw_sum = n_samples;
     // v1.6.1 _logistic.py#423
     let target = y_bin;
@@ -218,7 +217,8 @@ fn logistic_regression_path(args: &LogisticRegressionPathArgs) -> f64 {
     } else {
         todo!()
     };
-    minimize(&xs, &target, 1.0)
+    let l2_reg_strength = 1.0 / (args.c * sw_sum as f64);
+    minimize(&xs, &target, l2_reg_strength)
 }
 
 impl Estimator for LogisticRegression {
@@ -254,6 +254,7 @@ impl Estimator for LogisticRegression {
                 class: *c,
                 classes: &classes,
                 fit_intercept: self.fit_intercept,
+                c: self.c,
             };
             let val = logistic_regression_path(&args);
             coefs[i] = val;

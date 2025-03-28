@@ -23,6 +23,7 @@ fn test_logistic_regression() {
     let model = LogisticRegression {
         fit_intercept: true,
         penalty: LogisticRegressionPenalty::None,
+        ..Default::default()
     };
     let fitresult = model.fit(&xs, &ys).unwrap();
     tracing::info!("fitresult: {:?}", fitresult);
