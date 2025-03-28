@@ -305,7 +305,6 @@ impl Estimator for LogisticRegression {
 
 impl Predictor for LogisticRegressionResult {
     fn predict(&self, _xs: &Array2<f64>) -> Array1<f64> {
-        // xs.dot(&self.coefficients) + &self.intercepts
         todo!()
     }
 }
