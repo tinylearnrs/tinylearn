@@ -58,7 +58,7 @@ impl Default for LogisticRegression {
 #[derive(Clone, Debug, PartialEq)]
 pub struct LogisticRegressionResult {
     pub coefficients: Array1<f64>,
-    pub intercept: f64,
+    pub intercepts: Array1<f64>,
 }
 
 #[derive(Error, Debug)]
@@ -82,7 +82,123 @@ fn unique_values(data: &mut [f64]) -> &[f64] {
     &data[..write]
 }
 
-fn logistic_regression_path(xs: &Array2<f64>, ys: &Array1<f64>, class: f64) -> f64 {
+#[allow(unused)]
+struct LogisticRegressionPathArgs<'a> {
+    xs: &'a Array2<f64>,
+    ys: &'a Array1<f64>,
+    class: f64,
+    classes: &'a [f64],
+}
+
+fn loss_gradient(
+    w: &Array1<f64>,
+    xs: &Array2<f64>,
+    y: &Array1<f64>,
+    alpha: f64,
+) -> (f64, Array1<f64>) {
+    let n_samples = xs.nrows();
+    let n_features = xs.ncols();
+
+    // Initialize gradient vector and loss
+    let mut grad = Array1::<f64>::zeros(n_features);
+    let mut loss = 0.0;
+
+    // Calculate predictions and loss for binary classification
+    for i in 0..n_samples {
+        // Calculate linear prediction: z = X * w
+        let mut z = 0.0;
+        for j in 0..n_features {
+            z += xs[[i, j]] * w[j];
+        }
+
+        // Apply sigmoid function: p = 1 / (1 + exp(-z))
+        let p = 1.0 / (1.0 + (-z).exp());
+
+        // Binary cross-entropy loss
+        // L = -y*log(p) - (1-y)*log(1-p)
+        loss -= y[i] * (p + 1e-10).ln() + (1.0 - y[i]) * (1.0 - p + 1e-10).ln();
+
+        // Gradient: X^T * (p - y)
+        let diff = p - y[i];
+        for j in 0..n_features {
+            grad[j] += xs[[i, j]] * diff;
+        }
+    }
+
+    // Add L2 regularization term to loss and gradient if alpha > 0
+    if alpha > 0.0 {
+        for j in 0..n_features {
+            loss += 0.5 * alpha * w[j] * w[j];
+            grad[j] += alpha * w[j];
+        }
+    }
+
+    // Average loss and gradient
+    loss /= n_samples as f64;
+    for j in 0..n_features {
+        grad[j] /= n_samples as f64;
+    }
+
+    (loss, grad)
+}
+
+#[allow(unused)]
+fn minimize(xs: &Array2<f64>, c: f64) -> f64 {
+    let sw_sum = 99.0;
+    let l2_reg_strength = 1.0 / (c * sw_sum);
+    let loss = 0.0;
+    // v1.6.1 _logistic.py#429.
+    let f = loss_gradient;
+    // v1.6.1 _logistic.py#471.
+
+    // Use BFGS optimization to minimize the logistic regression loss function
+    let n_features = xs.ncols();
+    let mut w0 = Array1::<f64>::zeros(n_features);
+
+    // Define the objective function that returns the loss
+    let f = |w: &Array1<f64>| {
+        let (loss, _) = loss_gradient(w, xs, &Array1::<f64>::ones(xs.nrows()), l2_reg_strength);
+        loss
+    };
+
+    // Define the gradient function
+    let g = |w: &Array1<f64>| {
+        let (_, grad) = loss_gradient(w, xs, &Array1::<f64>::ones(xs.nrows()), l2_reg_strength);
+        grad
+    };
+
+    // Run BFGS optimization
+    match crate::bfgs::bfgs(w0, f, g) {
+        Ok(w_min) => {
+            tracing::debug!("BFGS optimization converged to w_min: {:?}", w_min);
+            let loss = f(&w_min);
+            loss
+        }
+        Err(e) => {
+            tracing::warn!("BFGS optimization failed: {:?}", e);
+            f64::INFINITY // Return infinity to indicate failure
+        }
+    }
+}
+
+#[allow(unused)]
+fn logistic_regression_path(args: &LogisticRegressionPathArgs) -> f64 {
+    let n_samples = args.xs.nrows();
+    let n_features = args.xs.ncols();
+    let classes = args.classes;
+    let pos_class = classes.first().unwrap();
+
+    // For binary problems coef.shape[0] should be 1
+    let n_classes = if classes.len() == 2 { 1 } else { todo!() };
+    let mut coef = Array1::<f64>::zeros(n_classes);
+    if coef.len() != n_classes {
+        panic!("coef.shape[0] should be 1");
+    }
+    // v1.6.1 _logistic.py#316
+    let y_bin = args.ys.map(|y| if *y == *pos_class { 1.0 } else { 0.0 });
+    // v1.6.1 _logistic.py#423
+    let target = y_bin;
+
     todo!()
 }
 
@@ -114,7 +230,13 @@ impl Estimator for LogisticRegression {
 
         let mut coefs = Array1::<f64>::zeros(n_classes);
         for (i, c) in classes.iter().enumerate() {
-            let val = logistic_regression_path(&xs, &ys, *c);
+            let args = LogisticRegressionPathArgs {
+                xs: &xs,
+                ys: &ys,
+                class: *c,
+                classes: &classes,
+            };
+            let val = logistic_regression_path(&args);
             coefs[i] = val;
         }
 
@@ -128,12 +250,15 @@ impl Estimator for LogisticRegression {
             intercepts = Array1::zeros(n_classes);
         }
 
-        todo!()
+        Ok(LogisticRegressionResult {
+            coefficients: coefs,
+            intercepts,
+        })
     }
 }
 
 impl Predictor for LogisticRegressionResult {
     fn predict(&self, xs: &Array2<f64>) -> Array1<f64> {
-        xs.dot(&self.coefficients) + self.intercept
+        xs.dot(&self.coefficients) + &self.intercepts
     }
 }

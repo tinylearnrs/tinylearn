@@ -31,5 +31,5 @@ fn test_logistic_regression() {
         &array![4.86734, 0.037258],
         epsilon = 1e-3
     );
-    assert_abs_diff_eq!(fitresult.intercept, -14.52750, epsilon = 1e-3);
+    assert_abs_diff_eq!(fitresult.intercepts, &array![-14.52750], epsilon = 1e-3);
 }
