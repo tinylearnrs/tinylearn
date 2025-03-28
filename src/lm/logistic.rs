@@ -264,7 +264,12 @@ impl Estimator for LogisticRegression {
             classes = classes[1..].to_vec();
         }
 
-        let mut coefs = Array2::<f64>::zeros((n_classes, xs.ncols()));
+        let n_features = if self.fit_intercept {
+            xs.ncols() + 1
+        } else {
+            xs.ncols()
+        };
+        let mut out = Array2::<f64>::zeros((n_classes, n_features));
         for (i, c) in classes.iter().enumerate() {
             let args = LogisticRegressionPathArgs {
                 xs: &xs,
@@ -275,23 +280,24 @@ impl Estimator for LogisticRegression {
                 c: self.c,
             };
             let val = logistic_regression_path(&args);
-            // ignore intercept
-            let val = val.slice(s![1..]);
-            coefs.slice_mut(s![i, ..]).assign(&val);
+            out.slice_mut(s![i, ..]).assign(&val);
         }
 
-        let intercepts;
-        if self.fit_intercept {
+        let intercepts = if self.fit_intercept {
             // self.coef[:, -1]
-            intercepts = coefs.slice(s![.., -1]).to_owned();
-            // self.coef[:, :-1]
-            coefs = coefs.slice(s![.., ..-1]).to_owned();
+            out.slice(s![.., -1]).to_owned()
         } else {
-            intercepts = Array1::zeros(n_classes);
-        }
+            Array1::zeros(n_classes)
+        };
+        let coefficients = if self.fit_intercept {
+            // self.coef[:, :-1]
+            out.slice(s![.., ..-1]).to_owned()
+        } else {
+            out
+        };
 
         Ok(LogisticRegressionResult {
-            coefficients: coefs,
+            coefficients,
             intercepts,
         })
     }
