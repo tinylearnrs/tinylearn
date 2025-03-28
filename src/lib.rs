@@ -18,6 +18,7 @@
 use ndarray::Array1;
 use ndarray::Array2;
 
+mod bfgs;
 pub mod lm;
 
 pub trait Predictor {

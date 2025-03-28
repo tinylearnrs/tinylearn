@@ -36,6 +36,14 @@ fn test_linear_regression() {
     let model = lm::LinearRegression {
         fit_intercept: true,
     };
+    // Numbers obtained via scikit-learn:
+    // ```py
+    // data = genfromtxt(csv_path, delimiter=',')
+    // xs = data[1:, 1:3]
+    // y = data[1:, 0]
+    // model = LinearRegression(fit_intercept=fit_intercept)
+    // model.fit(xs, y)
+    // ```
     let fitresult = model.fit(&xs, &ys).unwrap();
     tracing::info!("fitresult: {:?}", fitresult);
     assert_abs_diff_eq!(
