@@ -11,6 +11,10 @@ license = "BSD-3-Clause"
 
 [dependencies]
 approx = "0.5.1"
+argmin = { version = "0.10", default-features = false }
+# This one loads random by default.
+argmin-math = { version = "*", features = ["ndarray_latest-nolinalg"], default-features = false }
+# faer = { git = "https://github.com/sarah-ek/faer-rs", default-features = false }
 faer = { version = "0.21.9", default-features = false }
 faer-ext = { version = "0.5.0", features = ["ndarray"] }
 libc = { version = "0.2.155", default-features = false }
