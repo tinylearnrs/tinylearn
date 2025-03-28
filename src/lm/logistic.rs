@@ -148,30 +148,28 @@ fn minimize(xs: &Array2<f64>, c: f64) -> f64 {
     let l2_reg_strength = 1.0 / (c * sw_sum);
     let loss = 0.0;
     // v1.6.1 _logistic.py#429.
-    let f = loss_gradient;
+    let f = |w: &Array1<f64>| {
+        let y = Array1::<f64>::ones(xs.nrows());
+        let (loss, _) = loss_gradient(w, xs, &y, l2_reg_strength);
+        loss
+    };
     // v1.6.1 _logistic.py#471.
 
     // Use BFGS optimization to minimize the logistic regression loss function
     let n_features = xs.ncols();
-    let mut w0 = Array1::<f64>::zeros(n_features);
+    let mut x0 = Array1::<f64>::ones(n_features);
 
-    // Define the objective function that returns the loss
-    let f = |w: &Array1<f64>| {
-        let (loss, _) = loss_gradient(w, xs, &Array1::<f64>::ones(xs.nrows()), l2_reg_strength);
-        loss
-    };
-
-    // Define the gradient function
     let g = |w: &Array1<f64>| {
-        let (_, grad) = loss_gradient(w, xs, &Array1::<f64>::ones(xs.nrows()), l2_reg_strength);
+        let y = Array1::<f64>::ones(xs.nrows());
+        let (_, grad) = loss_gradient(w, xs, &y, l2_reg_strength);
         grad
     };
 
-    // Run BFGS optimization
-    match crate::bfgs::bfgs(w0, f, g) {
+    match crate::bfgs::bfgs(x0, f, g) {
         Ok(w_min) => {
-            tracing::debug!("BFGS optimization converged to w_min: {:?}", w_min);
+            tracing::info!("BFGS optimization converged to w_min: {:?}", w_min);
             let loss = f(&w_min);
+            tracing::info!("loss: {}", loss);
             loss
         }
         Err(e) => {
