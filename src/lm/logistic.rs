@@ -7,6 +7,7 @@ use faer_ext::*;
 use ndarray::prelude::*;
 use ndarray::Array1;
 use ndarray::Array2;
+use ndarray::Slice;
 use thiserror::Error;
 
 #[derive(Clone, Debug, Hash, PartialEq)]
@@ -111,17 +112,18 @@ impl Estimator for LogisticRegression {
             classes = classes[1..].to_vec();
         }
 
-        let mut coefs = Array2::<f64>::zeros((n_classes, xs.ncols()));
+        let mut coefs = Array1::<f64>::zeros(n_classes);
         for (i, c) in classes.iter().enumerate() {
-            coefs[i] = logistic_regression_path(&xs, &ys, *c);
+            let val = logistic_regression_path(&xs, &ys, *c);
+            coefs[i] = val;
         }
 
         let intercepts;
         if self.fit_intercept {
             // self.coef[:, -1]
-            intercepts = coefs.slice(s![0.., -1]).to_owned();
+            intercepts = coefs.slice(s![..-1]).to_owned();
             // self.coef[:, :-1]
-            coefs = coefs.slice(s![0.., ..-1]).to_owned();
+            coefs = coefs.slice(s![..-1]).to_owned();
         } else {
             intercepts = Array1::zeros(n_classes);
         }
