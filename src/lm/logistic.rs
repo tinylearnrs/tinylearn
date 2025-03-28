@@ -1,5 +1,7 @@
 //! Logistic Regression.
 
+use core::f32::INFINITY;
+
 use crate::Estimator;
 use crate::Predictor;
 use faer::linalg::solvers::SolveLstsqCore;
@@ -63,7 +65,7 @@ impl Default for LogisticRegression {
 /// Result of fitting the Logistic Regression.
 #[derive(Clone, Debug, PartialEq)]
 pub struct LogisticRegressionResult {
-    pub coefficients: Array1<f64>,
+    pub coefficients: Array2<f64>,
     pub intercepts: Array1<f64>,
 }
 
@@ -135,22 +137,38 @@ fn loss_gradient(
 
     // Add L2 regularization term to loss and gradient if alpha > 0
     if alpha > 0.0 {
-        for j in 0..n_features {
+        // Skip the intercept
+        for j in 1..n_features {
             loss += 0.5 * alpha * w[j] * w[j];
             grad[j] += alpha * w[j];
         }
     }
 
-    // Not calculating average loss and gradient, but doing alpha = 1. / c instead.
-    // loss /= n_samples as f64;
-    // for j in 0..n_features {
-    //     grad[j] /= n_samples as f64;
-    // }
+    loss /= n_samples as f64;
+    for j in 0..n_features {
+        grad[j] /= n_samples as f64;
+    }
+
+    let fit_intercept = true;
+    // Add L2 regularization term AFTER averaging
+    if alpha > 0.0 {
+        let mut w_norm_sq = 0.0;
+        let start_idx = if fit_intercept { 1 } else { 0 };
+        for j in start_idx..n_features {
+            w_norm_sq += w[j] * w[j];
+        }
+        loss += 0.5 * alpha * w_norm_sq;
+
+        // Add gradient penalty (excluding intercept)
+        for j in start_idx..n_features {
+            grad[j] += alpha * w[j];
+        }
+    }
 
     (loss, grad)
 }
 
-fn minimize(xs: &Array2<f64>, ys: &Array1<f64>, l2_reg_strength: f64) -> f64 {
+fn minimize(xs: &Array2<f64>, ys: &Array1<f64>, l2_reg_strength: f64) -> Array1<f64> {
     // v1.6.1 _logistic.py#429.
     let f = |w: &Array1<f64>| loss_gradient(w, xs, ys, l2_reg_strength).0;
     // v1.6.1 _logistic.py#471.
@@ -164,18 +182,16 @@ fn minimize(xs: &Array2<f64>, ys: &Array1<f64>, l2_reg_strength: f64) -> f64 {
     match crate::bfgs::bfgs(x0, f, g) {
         Ok(w_min) => {
             tracing::info!("BFGS optimization converged to w_min: {:?}", w_min);
-            let loss = f(&w_min);
-            tracing::info!("loss: {}", loss);
-            loss
+            w_min
         }
         Err(e) => {
             tracing::warn!("BFGS optimization failed: {:?}", e);
-            f64::INFINITY // Return infinity to indicate failure
+            Array1::<f64>::from_elem(n_features, INFINITY.into())
         }
     }
 }
 
-fn logistic_regression_path(args: &LogisticRegressionPathArgs) -> f64 {
+fn logistic_regression_path(args: &LogisticRegressionPathArgs) -> Array1<f64> {
     let n_samples = args.xs.nrows();
     let mut n_features = args.xs.ncols();
     let classes = args.classes;
@@ -217,8 +233,10 @@ fn logistic_regression_path(args: &LogisticRegressionPathArgs) -> f64 {
     } else {
         todo!()
     };
+
     let l2_reg_strength = 1.0 / (args.c * sw_sum as f64);
-    minimize(&xs, &target, l2_reg_strength)
+    let w_min = minimize(&xs, &target, l2_reg_strength);
+    w_min
 }
 
 impl Estimator for LogisticRegression {
@@ -246,7 +264,7 @@ impl Estimator for LogisticRegression {
             classes = classes[1..].to_vec();
         }
 
-        let mut coefs = Array1::<f64>::zeros(n_classes);
+        let mut coefs = Array2::<f64>::zeros((n_classes, xs.ncols()));
         for (i, c) in classes.iter().enumerate() {
             let args = LogisticRegressionPathArgs {
                 xs: &xs,
@@ -257,15 +275,17 @@ impl Estimator for LogisticRegression {
                 c: self.c,
             };
             let val = logistic_regression_path(&args);
-            coefs[i] = val;
+            // ignore intercept
+            let val = val.slice(s![1..]);
+            coefs.slice_mut(s![i, ..]).assign(&val);
         }
 
         let intercepts;
         if self.fit_intercept {
             // self.coef[:, -1]
-            intercepts = coefs.slice(s![..-1]).to_owned();
+            intercepts = coefs.slice(s![.., -1]).to_owned();
             // self.coef[:, :-1]
-            // coefs = coefs.slice(s![..-1]).to_owned();
+            coefs = coefs.slice(s![.., ..-1]).to_owned();
         } else {
             intercepts = Array1::zeros(n_classes);
         }
@@ -278,7 +298,8 @@ impl Estimator for LogisticRegression {
 }
 
 impl Predictor for LogisticRegressionResult {
-    fn predict(&self, xs: &Array2<f64>) -> Array1<f64> {
-        xs.dot(&self.coefficients) + &self.intercepts
+    fn predict(&self, _xs: &Array2<f64>) -> Array1<f64> {
+        // xs.dot(&self.coefficients) + &self.intercepts
+        todo!()
     }
 }
