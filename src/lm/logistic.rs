@@ -75,7 +75,7 @@ pub enum LogisticRegressionError {
     FitError,
 }
 
-fn unique_values(data: &mut [f64]) -> &[f64] {
+fn unique(data: &mut [f64]) -> &[f64] {
     if data.is_empty() {
         return &[];
     }
@@ -88,6 +88,17 @@ fn unique_values(data: &mut [f64]) -> &[f64] {
         }
     }
     &data[..write]
+}
+
+#[test]
+fn test_unique_values() {
+    // ```py
+    // ys = [1, 2]
+    // print(np.unique(ys))
+    // ```
+    let mut data = [2.0, 1.0, 2.0];
+    let unique = unique(&mut data);
+    assert_eq!(unique, &[1.0, 2.0]);
 }
 
 #[allow(unused)]
@@ -136,22 +147,17 @@ fn loss_gradient(
         }
     }
 
-    loss /= n_samples as f64;
-    for j in 0..n_features {
-        grad[j] /= n_samples as f64;
-    }
-
-    // Add L2 regularization term AFTER averaging
+    // Add L2 regularization term after averaging
     if alpha > 0.0 {
         let mut w_norm_sq = 0.0;
-        let start_idx = if fit_intercept { 1 } else { 0 };
-        for j in start_idx..n_features {
+        let end_idx = if fit_intercept { 1 } else { 0 };
+        for j in 0..(n_features-end_idx) {
             w_norm_sq += w[j] * w[j];
         }
         loss += 0.5 * alpha * w_norm_sq;
 
         // Add gradient penalty (excluding intercept)
-        for j in start_idx..n_features {
+        for j in 0..(n_features-end_idx) {
             grad[j] += alpha * w[j];
         }
     }
@@ -185,6 +191,16 @@ fn minimize(
             Array1::<f64>::from_elem(n_features, INFINITY.into())
         }
     }
+}
+
+#[test]
+fn test_minimize() {
+    // ```py
+    // xs = [
+    //     [1.0, 2.0],
+    //     [5.0, 8.0],
+    // ]
+    // ys = [1, 2]
 }
 
 fn logistic_regression_path(args: &LogisticRegressionPathArgs) -> Array1<f64> {
@@ -222,9 +238,9 @@ fn logistic_regression_path(args: &LogisticRegressionPathArgs) -> Array1<f64> {
         let shape = (n_samples, n_features);
         let mut x_augmented = Array2::<f64>::zeros(shape);
         x_augmented
-            .slice_mut(s![.., 0])
+            .slice_mut(s![.., -1])
             .assign(&Array1::<f64>::ones(n_samples));
-        x_augmented.slice_mut(s![.., 1..]).assign(&args.xs);
+        x_augmented.slice_mut(s![.., ..-1]).assign(&args.xs);
         x_augmented
     } else {
         todo!()
@@ -252,7 +268,7 @@ impl Estimator for LogisticRegression {
             }
         };
         let mut ys_ = ys.clone().as_slice_mut().unwrap().to_vec();
-        let mut classes = unique_values(&mut ys_).to_vec();
+        let mut classes = unique(&mut ys_).to_vec();
         // let max_squared_sum = None;
         let mut n_classes = classes.len();
 
