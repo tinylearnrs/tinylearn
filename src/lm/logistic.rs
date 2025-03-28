@@ -104,6 +104,7 @@ fn loss_gradient(
     w: &Array1<f64>,
     xs: &Array2<f64>,
     y: &Array1<f64>,
+    fit_intercept: bool,
     alpha: f64,
 ) -> (f64, Array1<f64>) {
     let n_samples = xs.nrows();
@@ -135,21 +136,11 @@ fn loss_gradient(
         }
     }
 
-    // Add L2 regularization term to loss and gradient if alpha > 0
-    if alpha > 0.0 {
-        // Skip the intercept
-        for j in 1..n_features {
-            loss += 0.5 * alpha * w[j] * w[j];
-            grad[j] += alpha * w[j];
-        }
-    }
-
     loss /= n_samples as f64;
     for j in 0..n_features {
         grad[j] /= n_samples as f64;
     }
 
-    let fit_intercept = true;
     // Add L2 regularization term AFTER averaging
     if alpha > 0.0 {
         let mut w_norm_sq = 0.0;
@@ -168,16 +159,21 @@ fn loss_gradient(
     (loss, grad)
 }
 
-fn minimize(xs: &Array2<f64>, ys: &Array1<f64>, l2_reg_strength: f64) -> Array1<f64> {
+fn minimize(
+    xs: &Array2<f64>,
+    ys: &Array1<f64>,
+    l2_reg_strength: f64,
+    fit_intercept: bool,
+) -> Array1<f64> {
     // v1.6.1 _logistic.py#429.
-    let f = |w: &Array1<f64>| loss_gradient(w, xs, ys, l2_reg_strength).0;
+    let f = |w: &Array1<f64>| loss_gradient(w, xs, ys, fit_intercept, l2_reg_strength).0;
     // v1.6.1 _logistic.py#471.
 
     // Use BFGS optimization to minimize the logistic regression loss function
     let n_features = xs.ncols();
-    let x0 = Array1::<f64>::ones(n_features);
+    let x0 = Array1::<f64>::zeros(n_features);
 
-    let g = |w: &Array1<f64>| loss_gradient(w, xs, ys, l2_reg_strength).1;
+    let g = |w: &Array1<f64>| loss_gradient(w, xs, ys, fit_intercept, l2_reg_strength).1;
 
     match crate::bfgs::bfgs(x0, f, g) {
         Ok(w_min) => {
@@ -235,7 +231,7 @@ fn logistic_regression_path(args: &LogisticRegressionPathArgs) -> Array1<f64> {
     };
 
     let l2_reg_strength = 1.0 / (args.c * sw_sum as f64);
-    let w_min = minimize(&xs, &target, l2_reg_strength);
+    let w_min = minimize(&xs, &target, l2_reg_strength, args.fit_intercept);
     w_min
 }
 
