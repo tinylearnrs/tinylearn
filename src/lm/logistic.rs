@@ -189,7 +189,7 @@ fn logistic_regression_path(args: &LogisticRegressionPathArgs) -> f64 {
     let pos_class = classes.first().unwrap();
 
     // For binary problems coef.shape[0] should be 1
-    let n_classes = if classes.len() == 2 { 1 } else { todo!() };
+    let n_classes = if classes.len() <= 2 { 1 } else { todo!() };
     let mut coef = Array1::<f64>::zeros(n_classes);
     if coef.len() != n_classes {
         panic!("coef.shape[0] should be 1");
@@ -199,7 +199,7 @@ fn logistic_regression_path(args: &LogisticRegressionPathArgs) -> f64 {
     // v1.6.1 _logistic.py#423
     let target = y_bin;
 
-    todo!()
+    minimize(&args.xs, 1.0)
 }
 
 impl Estimator for LogisticRegression {

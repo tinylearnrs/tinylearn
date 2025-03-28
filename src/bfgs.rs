@@ -120,12 +120,16 @@ where
 
         // Compute deltas between old and new
         let y: Array2<f64> = (&g_x - &g_x_old)
-            .into_shape((p, 1))
+            .into_shape_with_order((p, 1))
             .expect("y into_shape failed");
         let s: Array2<f64> = (epsilon * search_dir)
-            .into_shape((p, 1))
+            .into_shape_with_order((p, 1))
             .expect("s into_shape failed");
-        let sy: f64 = s.t().dot(&y).into_shape(()).expect("sy into_shape failed")[()];
+        let sy: f64 = s
+            .t()
+            .dot(&y)
+            .into_shape_with_order(())
+            .expect("sy into_shape failed")[()];
         let ss: Array2<f64> = s.dot(&s.t());
 
         if stop(f_x_old, f_x) {
