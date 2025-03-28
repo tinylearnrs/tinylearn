@@ -88,6 +88,7 @@ struct LogisticRegressionPathArgs<'a> {
     ys: &'a Array1<f64>,
     class: f64,
     classes: &'a [f64],
+    fit_intercept: bool,
 }
 
 fn loss_gradient(
@@ -133,35 +134,31 @@ fn loss_gradient(
         }
     }
 
-    // Average loss and gradient
-    loss /= n_samples as f64;
-    for j in 0..n_features {
-        grad[j] /= n_samples as f64;
-    }
+    // Not calculating average loss and gradient, but doing alpha = 1. / c instead.
+    // loss /= n_samples as f64;
+    // for j in 0..n_features {
+    //     grad[j] /= n_samples as f64;
+    // }
 
     (loss, grad)
 }
 
-#[allow(unused)]
-fn minimize(xs: &Array2<f64>, c: f64) -> f64 {
+fn minimize(xs: &Array2<f64>, ys: &Array1<f64>, c: f64) -> f64 {
     let sw_sum = 99.0;
     let l2_reg_strength = 1.0 / (c * sw_sum);
-    let loss = 0.0;
     // v1.6.1 _logistic.py#429.
     let f = |w: &Array1<f64>| {
-        let y = Array1::<f64>::ones(xs.nrows());
-        let (loss, _) = loss_gradient(w, xs, &y, l2_reg_strength);
+        let (loss, _) = loss_gradient(w, xs, ys, l2_reg_strength);
         loss
     };
     // v1.6.1 _logistic.py#471.
 
     // Use BFGS optimization to minimize the logistic regression loss function
     let n_features = xs.ncols();
-    let mut x0 = Array1::<f64>::ones(n_features);
+    let x0 = Array1::<f64>::ones(n_features);
 
     let g = |w: &Array1<f64>| {
-        let y = Array1::<f64>::ones(xs.nrows());
-        let (_, grad) = loss_gradient(w, xs, &y, l2_reg_strength);
+        let (_, grad) = loss_gradient(w, xs, ys, l2_reg_strength);
         grad
     };
 
@@ -179,25 +176,49 @@ fn minimize(xs: &Array2<f64>, c: f64) -> f64 {
     }
 }
 
-#[allow(unused)]
 fn logistic_regression_path(args: &LogisticRegressionPathArgs) -> f64 {
     let n_samples = args.xs.nrows();
-    let n_features = args.xs.ncols();
+    let mut n_features = args.xs.ncols();
     let classes = args.classes;
     let pos_class = classes.first().unwrap();
 
+    // v1.6.1 _logistic.py#375
     // For binary problems coef.shape[0] should be 1
     let n_classes = if classes.len() <= 2 { 1 } else { todo!() };
-    let mut coef = Array1::<f64>::zeros(n_classes);
+    let coef = Array1::<f64>::zeros(n_classes);
     if coef.len() != n_classes {
         panic!("coef.shape[0] should be 1");
     }
     // v1.6.1 _logistic.py#316
     let y_bin = args.ys.map(|y| if *y == *pos_class { 1.0 } else { 0.0 });
+    // v1.6.1 _logistic.py#363
+    let mut w0 = Array2::<f64>::ones((n_classes, n_features));
+    // v1.6.1 _logistic.py#398
+    if n_classes == 1 {
+        w0.slice_mut(s![0, coef.len()]).assign(&-coef.clone());
+        w0.slice_mut(s![1, coef.len()]).assign(&coef);
+    }
+    tracing::info!("w0: {:?}", w0);
+    let sw_sum = n_samples;
     // v1.6.1 _logistic.py#423
     let target = y_bin;
 
-    minimize(&args.xs, 1.0)
+    // v1.6.1 _logistic.py#348
+    if args.fit_intercept {
+        n_features += 1;
+    }
+    let xs = if args.fit_intercept {
+        let shape = (n_samples, n_features);
+        let mut x_augmented = Array2::<f64>::zeros(shape);
+        x_augmented
+            .slice_mut(s![.., 0])
+            .assign(&Array1::<f64>::ones(n_samples));
+        x_augmented.slice_mut(s![.., 1..]).assign(&args.xs);
+        x_augmented
+    } else {
+        todo!()
+    };
+    minimize(&xs, &target, 1.0)
 }
 
 impl Estimator for LogisticRegression {
@@ -222,7 +243,6 @@ impl Estimator for LogisticRegression {
         let mut n_classes = classes.len();
 
         if n_classes == 2 {
-            n_classes = 1;
             classes = classes[1..].to_vec();
         }
 
@@ -233,6 +253,7 @@ impl Estimator for LogisticRegression {
                 ys: &ys,
                 class: *c,
                 classes: &classes,
+                fit_intercept: self.fit_intercept,
             };
             let val = logistic_regression_path(&args);
             coefs[i] = val;
@@ -243,7 +264,7 @@ impl Estimator for LogisticRegression {
             // self.coef[:, -1]
             intercepts = coefs.slice(s![..-1]).to_owned();
             // self.coef[:, :-1]
-            coefs = coefs.slice(s![..-1]).to_owned();
+            // coefs = coefs.slice(s![..-1]).to_owned();
         } else {
             intercepts = Array1::zeros(n_classes);
         }
