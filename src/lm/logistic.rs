@@ -22,15 +22,15 @@ pub enum LogisticRegressionPenalty {
     None,
 }
 
-struct LogisticRegressionProblem<'a> {
-    xs: &'a Array2<f64>,
-    ys: &'a Array1<f64>,
+struct LogisticRegressionProblem {
+    xs: Array2<f64>,
+    ys: Array1<f64>,
     fit_intercept: bool,
     penalty: LogisticRegressionPenalty,
     lambda: f64,
 }
 
-impl<'a> LogisticRegressionProblem<'a> {
+impl LogisticRegressionProblem {
     fn get_weights_intercept(
         &self,
         params: &Array1<f64>,
@@ -41,7 +41,7 @@ impl<'a> LogisticRegressionProblem<'a> {
     }
 }
 
-impl<'a> CostFunction for LogisticRegressionProblem<'a> {
+impl CostFunction for LogisticRegressionProblem {
     type Param = Array1<f64>;
     type Output = f64;
 
@@ -107,7 +107,7 @@ fn sigmoid(z: f64) -> f64 {
     1.0 / (1.0 + (-z).exp())
 }
 
-impl<'a> Gradient for LogisticRegressionProblem<'a> {
+impl Gradient for LogisticRegressionProblem {
     type Param = Array1<f64>;
     type Gradient = Array1<f64>;
 
@@ -342,8 +342,8 @@ fn minimize(
     fit_intercept: bool,
 ) -> Array1<f64> {
     let problem = LogisticRegressionProblem {
-        xs,
-        ys,
+        xs: xs.to_owned(),
+        ys: ys.to_owned(),
         fit_intercept,
         penalty: LogisticRegressionPenalty::L2,
         lambda: l2_reg_strength,
