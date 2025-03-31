@@ -151,13 +151,13 @@ fn loss_gradient(
     if alpha > 0.0 {
         let mut w_norm_sq = 0.0;
         let end_idx = if fit_intercept { 1 } else { 0 };
-        for j in 0..(n_features-end_idx) {
+        for j in 0..(n_features - end_idx) {
             w_norm_sq += w[j] * w[j];
         }
         loss += 0.5 * alpha * w_norm_sq;
 
         // Add gradient penalty (excluding intercept)
-        for j in 0..(n_features-end_idx) {
+        for j in 0..(n_features - end_idx) {
             grad[j] += alpha * w[j];
         }
     }
@@ -201,6 +201,22 @@ fn test_minimize() {
     //     [5.0, 8.0],
     // ]
     // ys = [1, 2]
+    let mut xs = Array2::<f64>::zeros((2, 2));
+    xs[[0, 0]] = 1.0;
+    xs[[0, 1]] = 2.0;
+    xs[[1, 0]] = 5.0;
+    xs[[1, 1]] = 8.0;
+    let mut ys = Array1::<f64>::zeros(2);
+    ys[0] = 1.0;
+    ys[1] = 2.0;
+    let l2_reg_strength = 0.0;
+    let fit_intercept = true;
+    let w_min = minimize(&xs, &ys, l2_reg_strength, fit_intercept);
+    let mut expected = Array1::<f64>::zeros(3);
+    expected[0] = 4.8673412;
+    expected[1] = 0.03725813;
+    expected[2] = -14.52750733;
+    assert_eq!(w_min, expected);
 }
 
 fn logistic_regression_path(args: &LogisticRegressionPathArgs) -> Array1<f64> {
