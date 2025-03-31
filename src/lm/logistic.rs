@@ -8,6 +8,7 @@ use argmin::core::CostFunction;
 use argmin::core::Error as ArgminError;
 use argmin::core::Executor;
 use argmin::core::Gradient;
+use argmin::core::LineSearch;
 use argmin::core::State;
 use argmin::solver::linesearch::condition::ArmijoCondition;
 use argmin::solver::linesearch::condition::WolfeCondition;
@@ -305,10 +306,8 @@ fn minimize(
     };
     let init_param = Array1::<f64>::zeros(param_len);
 
-    // let ls = MoreThuenteLineSearch::new().with_c(1e-4, 0.9).unwrap();
-    let wolfe = WolfeCondition::new(1e-4, 0.9).unwrap();
-    // let armijo = ArmijoCondition::new(1e-4).unwrap();
-    let ls = BacktrackingLineSearch::new(wolfe);
+    let ls: MoreThuenteLineSearch<Array1<f64>, Array1<f64>, f64> =
+        MoreThuenteLineSearch::new().with_c(1e-4, 0.9).unwrap();
 
     // Tolerance for loss function.
     let ftol = 64.0 * core::f64::EPSILON;
