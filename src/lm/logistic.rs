@@ -306,8 +306,9 @@ fn minimize(
     };
     let init_param = Array1::<f64>::zeros(param_len);
 
-    let ls: MoreThuenteLineSearch<Array1<f64>, Array1<f64>, f64> =
+    let mut ls: MoreThuenteLineSearch<Array1<f64>, Array1<f64>, f64> =
         MoreThuenteLineSearch::new().with_c(1e-4, 0.9).unwrap();
+    ls.initial_step_length(1.0).unwrap();
 
     // Tolerance for loss function.
     let ftol = 64.0 * core::f64::EPSILON;
