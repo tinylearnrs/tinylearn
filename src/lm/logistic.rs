@@ -1,13 +1,12 @@
 //! Logistic Regression.
 
-use core::f64::INFINITY;
-
 use crate::Estimator;
 use crate::Predictor;
 use argmin::core::CostFunction;
 use argmin::core::Error as ArgminError;
 use argmin::core::Executor;
 use argmin::core::Gradient;
+use argmin::core::State;
 use argmin::solver::linesearch::MoreThuenteLineSearch;
 use argmin::solver::quasinewton::LBFGS;
 use ndarray::prelude::*;
@@ -281,60 +280,6 @@ struct LogisticRegressionPathArgs<'a> {
     c: f64,
 }
 
-fn loss_gradient(
-    w: &Array1<f64>,
-    xs: &Array2<f64>,
-    y: &Array1<f64>,
-    fit_intercept: bool,
-    alpha: f64,
-) -> (f64, Array1<f64>) {
-    let n_samples = xs.nrows();
-    let n_features = xs.ncols();
-
-    // Initialize gradient vector and loss
-    let mut grad = Array1::<f64>::zeros(n_features);
-    let mut loss = 0.0;
-
-    // Calculate predictions and loss for binary classification
-    for i in 0..n_samples {
-        // Calculate linear prediction: z = X * w
-        let mut z = 0.0;
-        for j in 0..n_features {
-            z += xs[[i, j]] * w[j];
-        }
-
-        // Apply sigmoid function: p = 1 / (1 + exp(-z))
-        let p = 1.0 / (1.0 + (-z).exp());
-
-        // Binary cross-entropy loss
-        // L = -y*log(p) - (1-y)*log(1-p)
-        loss -= y[i] * (p + 1e-10).ln() + (1.0 - y[i]) * (1.0 - p + 1e-10).ln();
-
-        // Gradient: X^T * (p - y)
-        let diff = p - y[i];
-        for j in 0..n_features {
-            grad[j] += xs[[i, j]] * diff;
-        }
-    }
-
-    // Add L2 regularization term after averaging
-    if alpha > 0.0 {
-        let mut w_norm_sq = 0.0;
-        let end_idx = if fit_intercept { 1 } else { 0 };
-        for j in 0..(n_features - end_idx) {
-            w_norm_sq += w[j] * w[j];
-        }
-        loss += 0.5 * alpha * w_norm_sq;
-
-        // Add gradient penalty (excluding intercept)
-        for j in 0..(n_features - end_idx) {
-            grad[j] += alpha * w[j];
-        }
-    }
-
-    (loss, grad)
-}
-
 fn minimize(
     xs: &Array2<f64>,
     ys: &Array1<f64>,
@@ -357,7 +302,8 @@ fn minimize(
 
     let linesearch = MoreThuenteLineSearch::new().with_c(1e-4, 0.9).unwrap();
 
-    let solver = LBFGS::new(linesearch, 7);
+    let gtol = 1e-4;
+    let solver = LBFGS::new(linesearch, 7).with_tolerance_cost(gtol).unwrap();
 
     let result = Executor::new(problem.clone(), solver)
         .configure(|state| state.param(init_param).max_iters(100))
@@ -365,9 +311,7 @@ fn minimize(
         .run()
         .unwrap();
 
-    let (w, b) = problem.get_weights_intercept(&result.state.param.unwrap()).unwrap();
-
-    w
+    result.state.get_best_param().unwrap().to_owned()
 }
 
 #[test]
