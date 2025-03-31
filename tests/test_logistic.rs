@@ -1,4 +1,3 @@
-use approx::assert_abs_diff_eq;
 use ndarray::array;
 use tinylearn::lm::LogisticRegression;
 use tinylearn::lm::LogisticRegressionPenalty;

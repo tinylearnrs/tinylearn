@@ -4,7 +4,6 @@ use core::f64::INFINITY;
 
 use crate::Estimator;
 use crate::Predictor;
-use argmin::core::observers::ObserverMode;
 use argmin::core::CostFunction;
 use argmin::core::Error as ArgminError;
 use argmin::core::Executor;
@@ -348,7 +347,12 @@ fn minimize(
         penalty: LogisticRegressionPenalty::L2,
         lambda: l2_reg_strength,
     };
-    let init_param = Array1::<f64>::zeros(xs.ncols());
+    let param_len = if fit_intercept {
+        xs.ncols() + 1
+    } else {
+        xs.ncols()
+    };
+    let init_param = Array1::<f64>::zeros(param_len);
 
     let linesearch = MoreThuenteLineSearch::new().with_c(1e-4, 0.9).unwrap();
 
@@ -360,26 +364,7 @@ fn minimize(
         .run()
         .unwrap();
 
-    // v1.6.1 _logistic.py#429.
-    let f = |w: &Array1<f64>| loss_gradient(w, xs, ys, fit_intercept, l2_reg_strength).0;
-    // v1.6.1 _logistic.py#471.
-
-    // Use BFGS optimization to minimize the logistic regression loss function
-    let n_features = xs.ncols();
-    let x0 = Array1::<f64>::zeros(n_features);
-
-    let g = |w: &Array1<f64>| loss_gradient(w, xs, ys, fit_intercept, l2_reg_strength).1;
-
-    match crate::bfgs::bfgs(x0, f, g) {
-        Ok(w_min) => {
-            tracing::info!("BFGS optimization converged to w_min: {:?}", w_min);
-            w_min
-        }
-        Err(e) => {
-            tracing::warn!("BFGS optimization failed: {:?}", e);
-            Array1::<f64>::from_elem(n_features, INFINITY.into())
-        }
-    }
+    todo!()
 }
 
 #[test]
