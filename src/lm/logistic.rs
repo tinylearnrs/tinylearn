@@ -10,9 +10,6 @@ use argmin::core::Executor;
 use argmin::core::Gradient;
 use argmin::core::LineSearch;
 use argmin::core::State;
-use argmin::solver::linesearch::condition::ArmijoCondition;
-use argmin::solver::linesearch::condition::WolfeCondition;
-use argmin::solver::linesearch::BacktrackingLineSearch;
 use argmin::solver::linesearch::MoreThuenteLineSearch;
 use argmin::solver::quasinewton::LBFGS;
 use ndarray::prelude::*;
@@ -320,6 +317,8 @@ fn minimize(
     let solver = LBFGS::new(ls, m)
         .with_tolerance_cost(ftol)
         .unwrap()
+        // .with_l1_regularization(0.000000000001)
+        // .unwrap()
         .with_tolerance_grad(gtol)
         .unwrap();
 
