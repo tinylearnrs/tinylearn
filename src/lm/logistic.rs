@@ -21,6 +21,7 @@ pub enum LogisticRegressionPenalty {
     None,
 }
 
+#[derive(Clone, Debug)]
 struct LogisticRegressionProblem {
     xs: Array2<f64>,
     ys: Array1<f64>,
@@ -358,13 +359,15 @@ fn minimize(
 
     let solver = LBFGS::new(linesearch, 7);
 
-    let result = Executor::new(problem, solver)
+    let result = Executor::new(problem.clone(), solver)
         .configure(|state| state.param(init_param).max_iters(100))
         // .add_observer(SlogLogger::term(), ObserverMode::Always)
         .run()
         .unwrap();
 
-    todo!()
+    let (w, b) = problem.get_weights_intercept(&result.state.param.unwrap()).unwrap();
+
+    w
 }
 
 #[test]
