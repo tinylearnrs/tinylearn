@@ -328,8 +328,8 @@ fn test_minimize() {
     xs[[1, 0]] = 5.0;
     xs[[1, 1]] = 8.0;
     let mut ys = Array1::<f64>::zeros(2);
-    ys[0] = 1.0;
-    ys[1] = 2.0;
+    ys[0] = 0.0;
+    ys[1] = 1.0;
     let l2_reg_strength = 0.0;
     let fit_intercept = true;
     let w_min = minimize(&xs, &ys, l2_reg_strength, fit_intercept);
