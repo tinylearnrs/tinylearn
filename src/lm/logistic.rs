@@ -1,5 +1,7 @@
 //! Logistic Regression.
 
+use core::f64;
+
 use crate::Estimator;
 use crate::Predictor;
 use argmin::core::CostFunction;
@@ -7,6 +9,9 @@ use argmin::core::Error as ArgminError;
 use argmin::core::Executor;
 use argmin::core::Gradient;
 use argmin::core::State;
+use argmin::solver::linesearch::condition::ArmijoCondition;
+use argmin::solver::linesearch::condition::WolfeCondition;
+use argmin::solver::linesearch::BacktrackingLineSearch;
 use argmin::solver::linesearch::MoreThuenteLineSearch;
 use argmin::solver::quasinewton::LBFGS;
 use ndarray::prelude::*;
@@ -300,7 +305,10 @@ fn minimize(
     };
     let init_param = Array1::<f64>::zeros(param_len);
 
-    let linesearch = MoreThuenteLineSearch::new().with_c(1e-4, 0.9).unwrap();
+    // let ls = MoreThuenteLineSearch::new().with_c(1e-4, 0.9).unwrap();
+    let wolfe = WolfeCondition::new(1e-4, 0.9).unwrap();
+    // let armijo = ArmijoCondition::new(1e-4).unwrap();
+    let ls = BacktrackingLineSearch::new(wolfe);
 
     // Tolerance for loss function.
     let ftol = 64.0 * core::f64::EPSILON;
@@ -309,14 +317,14 @@ fn minimize(
     // argmin in the tests uses 10 when comparing to scipy.
     // argmin/crates/argmin/src/tests.rs
     let m = 10;
-    let solver = LBFGS::new(linesearch, m)
+    let solver = LBFGS::new(ls, m)
         .with_tolerance_cost(ftol)
         .unwrap()
         .with_tolerance_grad(gtol)
         .unwrap();
 
     let max_iter = 100;
-    let result = Executor::new(problem.clone(), solver)
+    let result = Executor::new(problem, solver)
         .configure(|state| state.param(init_param).max_iters(max_iter))
         // .add_observer(SlogLogger::term(), ObserverMode::Always)
         .run()
