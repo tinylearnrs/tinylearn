@@ -302,11 +302,22 @@ fn minimize(
 
     let linesearch = MoreThuenteLineSearch::new().with_c(1e-4, 0.9).unwrap();
 
-    let gtol = 1e-4;
-    let solver = LBFGS::new(linesearch, 7).with_tolerance_cost(gtol).unwrap();
+    // Tolerance for loss function.
+    let ftol = 64.0 * core::f64::EPSILON;
+    let gtol = 0.0001;
 
+    // argmin in the tests uses 10 when comparing to scipy.
+    // argmin/crates/argmin/src/tests.rs
+    let m = 10;
+    let solver = LBFGS::new(linesearch, m)
+        .with_tolerance_cost(ftol)
+        .unwrap()
+        .with_tolerance_grad(gtol)
+        .unwrap();
+
+    let max_iter = 100;
     let result = Executor::new(problem.clone(), solver)
-        .configure(|state| state.param(init_param).max_iters(100))
+        .configure(|state| state.param(init_param).max_iters(max_iter))
         // .add_observer(SlogLogger::term(), ObserverMode::Always)
         .run()
         .unwrap();
