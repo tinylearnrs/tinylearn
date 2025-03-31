@@ -1,21 +1,191 @@
 //! Logistic Regression.
 
-use core::f32::INFINITY;
+use core::f64::INFINITY;
 
 use crate::Estimator;
 use crate::Predictor;
-use faer::linalg::solvers::SolveLstsqCore;
-use faer_ext::*;
+use argmin::core::observers::ObserverMode;
+use argmin::core::CostFunction;
+use argmin::core::Error as ArgminError;
+use argmin::core::Executor;
+use argmin::core::Gradient;
+use argmin::solver::linesearch::MoreThuenteLineSearch;
+use argmin::solver::quasinewton::LBFGS;
 use ndarray::prelude::*;
 use ndarray::Array1;
 use ndarray::Array2;
-use ndarray::Slice;
 use thiserror::Error;
 
 #[derive(Clone, Debug, Hash, PartialEq)]
 pub enum LogisticRegressionPenalty {
     L2,
     None,
+}
+
+struct LogisticRegressionProblem<'a> {
+    xs: &'a Array2<f64>,
+    ys: &'a Array1<f64>,
+    fit_intercept: bool,
+    penalty: LogisticRegressionPenalty,
+    lambda: f64,
+}
+
+impl<'a> LogisticRegressionProblem<'a> {
+    fn get_weights_intercept(
+        &self,
+        params: &Array1<f64>,
+    ) -> Result<(Array1<f64>, f64), ArgminError> {
+        let w = params.slice(s![..-1]).to_owned();
+        let b = params[params.len() - 1];
+        Ok((w, b))
+    }
+}
+
+impl<'a> CostFunction for LogisticRegressionProblem<'a> {
+    type Param = Array1<f64>;
+    type Output = f64;
+
+    /// Calculates the regularized logistic loss (negative log-likelihood).
+    /// Cost = (1/m) * sum[ log(1 + exp(-z_i)) if y_i=0 else log(1 + exp(z_i)) ] + Regularization
+    /// A more stable form (log-sum-exp):
+    /// Cost = (1/m) * sum[ max(z_i, 0) - z_i*y_i + log(1 + exp(-abs(z_i))) ] + Regularization
+    /// where z_i = w^T * x_i + b
+    /// Regularization = (lambda / 2) * ||w||^2   (for L2)
+    fn cost(&self, params: &Self::Param) -> Result<Self::Output, ArgminError> {
+        let m = self.xs.nrows();
+        if m == 0 {
+            return Ok(0.0); // No data, no cost
+        }
+        let m_f64 = m as f64;
+
+        // 1. Separate weights (w) and intercept (b)
+        // Use map_err to convert our custom error to ArgminError
+        let (w, b) = self
+            .get_weights_intercept(params)
+            .map_err(ArgminError::from)?;
+
+        // 2. Calculate linear prediction: z = X * w + b
+        // z shape: (m,)
+        let mut z = self.xs.dot(&w);
+        if self.fit_intercept {
+            z.mapv_inplace(|val| val + b); // Add intercept b to each element
+        }
+
+        // 3. Calculate logistic loss using numerically stable log-sum-exp trick
+        // term1 = max(z_i, 0)
+        // term2 = z_i * y_i
+        // term3 = log(1 + exp(-abs(z_i)))
+        // loss_samples = term1 - term2 + term3
+        let term1 = z.mapv(|zi| zi.max(0.0));
+        let term2 = z
+            .iter()
+            .zip(self.ys.iter())
+            .map(|(zi, yi)| zi * yi)
+            .collect::<Array1<f64>>();
+        // Calculate term3 carefully: exp(-abs(z)) -> mapv(ln(1+x))
+        let term3 = z.mapv(|zi| (-zi.abs()).exp()).mapv(|v| (1.0 + v).ln());
+
+        // Sum over all samples and average
+        let data_loss = (term1 - term2 + term3).sum() / m_f64;
+
+        // 4. Add regularization term (only for weights w, not intercept b)
+        let reg_cost = match self.penalty {
+            LogisticRegressionPenalty::L2 => {
+                // Regularization = (lambda / 2) * ||w||^2
+                // Note: ||w||^2 = w.dot(&w)
+                0.5 * self.lambda * w.dot(&w)
+            }
+            LogisticRegressionPenalty::None => 0.0,
+        };
+
+        // Total cost
+        Ok(data_loss + reg_cost)
+    }
+}
+
+fn sigmoid(z: f64) -> f64 {
+    1.0 / (1.0 + (-z).exp())
+}
+
+impl<'a> Gradient for LogisticRegressionProblem<'a> {
+    type Param = Array1<f64>;
+    type Gradient = Array1<f64>;
+
+    /// Calculate the gradient of the regularized logistic loss.
+    ///
+    /// grad_w = (1/m) * X^T * (sigmoid(z) - y) + lambda * w
+    /// grad_b = (1/m) * sum(sigmoid(z) - y)
+    fn gradient(&self, params: &Self::Param) -> Result<Self::Gradient, ArgminError> {
+        let m = self.xs.nrows();
+        if m == 0 {
+            // Return zero gradient of the correct size
+            return Ok(Array1::zeros(params.len()));
+        }
+        let m_f64 = m as f64;
+        let n_features = self.xs.ncols();
+
+        // 1. Separate weights (w) and intercept (b)
+        let (w, b) = self
+            .get_weights_intercept(params)
+            .map_err(ArgminError::from)?;
+
+        // 2. Calculate linear prediction: z = X * w + b
+        let mut z = self.xs.dot(&w);
+        if self.fit_intercept {
+            z.mapv_inplace(|val| val + b); // Add intercept b
+        }
+
+        // 3. Calculate predictions (probabilities): h = sigmoid(z)
+        let h = z.mapv(sigmoid);
+
+        // 4. Calculate error: error = h - y
+        let error = h
+            .iter()
+            .zip(self.ys.iter())
+            .map(|(hi, yi)| hi - yi)
+            .collect::<Array1<f64>>();
+        // error shape: (m,)
+
+        // 5. Calculate gradient w.r.t. weights (grad_w)
+        // grad_w = (1/m) * X^T * error + [regularization term]
+        // X^T is (n_features, m), error is (m,) -> result is (n_features,)
+        let mut grad_w = self.xs.t().dot(&error) / m_f64;
+
+        // Add L2 regularization term to grad_w (if applicable)
+        // Regularization term: lambda * w
+        if self.penalty == LogisticRegressionPenalty::L2 {
+            // Use scaled_add: grad_w = 1.0 * grad_w + self.lambda * w
+            grad_w.scaled_add(self.lambda, &w);
+        }
+
+        // 6. Calculate gradient w.r.t. intercept (grad_b) (if applicable)
+        // grad_b = (1/m) * sum(error)
+        let grad_b = if self.fit_intercept {
+            error.sum() / m_f64
+        } else {
+            // If no intercept, this part of the gradient doesn't exist
+            // but we need to handle it when combining below.
+            0.0 // Placeholder, won't be used if fit_intercept is false
+        };
+
+        // 7. Combine gradients into a single vector matching `params` shape
+        let final_grad = if self.fit_intercept {
+            // Stack grad_w and grad_b
+            let mut grad = Array1::zeros(n_features + 1);
+            grad.slice_mut(s![..n_features]).assign(&grad_w);
+            grad[n_features] = grad_b;
+            grad
+            // Alternative using stack (might be slightly less efficient due to view creation)
+            // ndarray::stack(Axis(0), &[grad_w.view(), ArrayView1::from_shape((1,), &[grad_b]).unwrap()])
+            //     .unwrap() // stack can fail if shapes mismatch
+            //     .into_shape((n_features + 1,)).unwrap() // Reshape back to 1D
+        } else {
+            // Gradient is just grad_w
+            grad_w
+        };
+
+        Ok(final_grad)
+    }
 }
 
 /// Logistic Regression (aka logit, MaxEnt) classifier.
@@ -171,6 +341,25 @@ fn minimize(
     l2_reg_strength: f64,
     fit_intercept: bool,
 ) -> Array1<f64> {
+    let problem = LogisticRegressionProblem {
+        xs,
+        ys,
+        fit_intercept,
+        penalty: LogisticRegressionPenalty::L2,
+        lambda: l2_reg_strength,
+    };
+    let init_param = Array1::<f64>::zeros(xs.ncols());
+
+    let linesearch = MoreThuenteLineSearch::new().with_c(1e-4, 0.9).unwrap();
+
+    let solver = LBFGS::new(linesearch, 7);
+
+    let result = Executor::new(problem, solver)
+        .configure(|state| state.param(init_param).max_iters(100))
+        // .add_observer(SlogLogger::term(), ObserverMode::Always)
+        .run()
+        .unwrap();
+
     // v1.6.1 _logistic.py#429.
     let f = |w: &Array1<f64>| loss_gradient(w, xs, ys, fit_intercept, l2_reg_strength).0;
     // v1.6.1 _logistic.py#471.
