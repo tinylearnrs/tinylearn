@@ -280,7 +280,7 @@ struct LogisticRegressionPathArgs<'a> {
     class: f64,
     classes: &'a [f64],
     fit_intercept: bool,
-    c: f64,
+    c_: f64,
 }
 
 fn minimize(
@@ -403,9 +403,6 @@ fn logistic_regression_path(args: &LogisticRegressionPathArgs) -> Array1<f64> {
     }
     // v1.6.1 _logistic.py#316
     let y_bin = args.ys.map(|y| if *y == *pos_class { 1.0 } else { 0.0 });
-    // v1.6.1 _logistic.py#363
-    // w0 is used for warm_start.
-    // let mut w0 = Array2::<f64>::ones((n_classes, n_features));
     // v1.6.1 _logistic.py#398
     // if n_classes == 1 {
     //     w0.slice_mut(s![0, coef.len()]).assign(&-coef.clone());
@@ -419,20 +416,9 @@ fn logistic_regression_path(args: &LogisticRegressionPathArgs) -> Array1<f64> {
     if args.fit_intercept {
         n_features += 1;
     }
-    let xs = if args.fit_intercept {
-        let shape = (n_samples, n_features);
-        let mut x_augmented = Array2::<f64>::zeros(shape);
-        x_augmented
-            .slice_mut(s![.., -1])
-            .assign(&Array1::<f64>::ones(n_samples));
-        x_augmented.slice_mut(s![.., ..-1]).assign(&args.xs);
-        x_augmented
-    } else {
-        todo!()
-    };
 
-    let l2_reg_strength = 1.0 / (args.c * sw_sum as f64);
-    let w_min = minimize(&xs, &target, l2_reg_strength, args.fit_intercept);
+    let l2_reg_strength = 1.0 / (args.c_ * sw_sum as f64);
+    let w_min = minimize(&args.xs, &target, l2_reg_strength, args.fit_intercept);
     w_min
 }
 
@@ -448,7 +434,7 @@ impl Estimator for LogisticRegression {
                 c_ = 1.0;
             }
             LogisticRegressionPenalty::None => {
-                c_ = core::f64::MAX;
+                c_ = core::f64::INFINITY;
                 penalty = LogisticRegressionPenalty::L2;
             }
         };
@@ -474,7 +460,7 @@ impl Estimator for LogisticRegression {
                 class: *c,
                 classes: &classes,
                 fit_intercept: self.fit_intercept,
-                c: self.c,
+                c_,
             };
             let val = logistic_regression_path(&args);
             out.slice_mut(s![i, ..]).assign(&val);
