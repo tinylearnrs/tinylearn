@@ -62,9 +62,7 @@ impl CostFunction for LogisticRegressionProblem {
 
         // 1. Separate weights (w) and intercept (b)
         // Use map_err to convert our custom error to ArgminError
-        let (w, b) = self
-            .get_weights_intercept(params)
-            .map_err(ArgminError::from)?;
+        let (w, b) = self.get_weights_intercept(params)?;
 
         // 2. Calculate linear prediction: z = X * w + b
         // z shape: (m,)
@@ -127,9 +125,7 @@ impl Gradient for LogisticRegressionProblem {
         let n_features = self.xs.ncols();
 
         // 1. Separate weights (w) and intercept (b)
-        let (w, b) = self
-            .get_weights_intercept(params)
-            .map_err(ArgminError::from)?;
+        let (w, b) = self.get_weights_intercept(params)?;
 
         // 2. Calculate linear prediction: z = X * w + b
         let mut z = self.xs.dot(&w);
@@ -308,7 +304,7 @@ fn minimize(
     ls.initial_step_length(1.0).unwrap();
 
     // Tolerance for loss function.
-    let ftol = 64.0 * core::f64::EPSILON;
+    let ftol = 64.0 * f64::EPSILON;
     let gtol = 0.0001;
 
     // argmin in the tests uses 10 when comparing to scipy.
@@ -412,8 +408,7 @@ fn logistic_regression_path(args: &LogisticRegressionPathArgs) -> Array1<f64> {
     let target = y_bin;
 
     let l2_reg_strength = 1.0 / (args.c_ * sw_sum as f64);
-    let w_min = minimize(&args.xs, &target, l2_reg_strength, args.fit_intercept);
-    w_min
+    minimize(args.xs, &target, l2_reg_strength, args.fit_intercept)
 }
 
 impl Estimator for LogisticRegression {
@@ -428,7 +423,7 @@ impl Estimator for LogisticRegression {
                 c_ = 1.0;
             }
             LogisticRegressionPenalty::None => {
-                c_ = core::f64::INFINITY;
+                c_ = f64::INFINITY;
                 penalty = LogisticRegressionPenalty::L2;
             }
         };
@@ -450,8 +445,8 @@ impl Estimator for LogisticRegression {
         let mut out = Array2::<f64>::zeros((n_classes, n_features));
         for (i, c) in classes.iter().enumerate() {
             let args = LogisticRegressionPathArgs {
-                xs: &xs,
-                ys: &ys,
+                xs,
+                ys,
                 class: *c,
                 classes: &classes,
                 fit_intercept: self.fit_intercept,
