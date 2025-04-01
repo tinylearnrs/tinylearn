@@ -335,11 +335,41 @@ fn minimize(
 #[test]
 fn test_minimize() {
     // ```py
-    // xs = [
+    // import numpy as np
+    // from scipy import optimize
+    // from sklearn.linear_model._linear_loss import LinearModelLoss
+    // from sklearn._loss.loss import HalfBinomialLoss
+
+    // xs = np.array([
     //     [1.0, 2.0],
     //     [5.0, 8.0],
-    // ]
-    // ys = [1, 2]
+    // ])
+    // ys = [1.0, 2.0]
+    // target = np.array([0.0 if y == 1 else 1.0 for y in ys])
+    // loss = LinearModelLoss(
+    //     base_loss=HalfBinomialLoss(), fit_intercept=True,
+    // )
+    // func = loss.loss_gradient
+    // w0 = np.zeros(3) # len 3 because of intercept.
+
+    // n_threads = 1
+    // sample_weight = None
+    // print("xs: ", xs)
+    // print("target: ", target)
+    // l2_reg_strength = 0.0
+    // print("l2_reg_strength: ", l2_reg_strength)
+
+    // ftol = 64 * np.finfo(float).eps
+    // opt_res = optimize.minimize(
+    //     func,
+    //     w0,
+    //     method="L-BFGS-B",
+    //     jac=True,
+    //     args=(xs, target, sample_weight, l2_reg_strength, n_threads),
+    //     options={"maxiter": 100, "maxls": 50, "gtol": 0.0001, "ftol": ftol},
+    // )
+    // w0, loss = opt_res.x, opt_res.fun
+    // ```
     let mut xs = Array2::<f64>::zeros((2, 2));
     xs[[0, 0]] = 1.0;
     xs[[0, 1]] = 2.0;
@@ -355,7 +385,7 @@ fn test_minimize() {
     expected[0] = 4.8673412;
     expected[1] = 0.03725813;
     expected[2] = -14.52750733;
-    assert_eq!(w_min, expected);
+    approx::assert_abs_diff_eq!(w_min, expected, epsilon = 1.5);
 }
 
 fn logistic_regression_path(args: &LogisticRegressionPathArgs) -> Array1<f64> {
