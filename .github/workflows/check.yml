@@ -16,11 +16,21 @@ jobs:
       - uses: actions/checkout@v4
       - run: rustup update stable
       - run: rustup default stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}
       - run: cargo test --all-features
+      - run: RUSTDOCFLAGS="-D warnings" cargo doc
 
   wasm:
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
     timeout-minutes: 15
 
     steps:
@@ -28,8 +38,15 @@ jobs:
       - run: rustup update stable
       - run: rustup default stable
       - run: rustup target add wasm32-unknown-unknown
-      - uses: Swatinem/rust-cache@v2
-      # Smoke test.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-wasm-${{ hashFiles('**/Cargo.lock') }}
       - run: cargo build --target wasm32-unknown-unknown
 
   typos:
@@ -39,10 +56,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - uses: crate-ci/typos@master
+      - uses: actions/cache@v4
         with:
-          files: '.'
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-typos-${{ hashFiles('**/Cargo.lock') }}
+      - run: cargo install typos-cli@1.31.1
+      - run: typos .
 
   fmt:
     runs-on: ubuntu-latest
@@ -65,7 +89,4 @@ jobs:
       - uses: actions/checkout@v4
       - run: rustup update stable
       - run: rustup default stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: 'clippy'
       - run: cargo clippy --all --all-features -- -D warnings
