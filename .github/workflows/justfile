@@ -1,0 +1,10 @@
+shebang := "/usr/bin/env bash"
+
+alias b := build
+alias s := serve
+
+default:
+    just --list
+
+deny:
+    cargo deny check advisories bans licenses sources
