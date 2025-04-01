@@ -1,6 +1,8 @@
 # tinylearn
 
-Machine learning in WebAssembly and no_std environments.
+Machine learning in pure Rust.
+
+Supports WebAssembly (`wasm32-unknown-unknown`) and no_std environments.
 
 You may be looking for:
 

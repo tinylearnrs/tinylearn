@@ -390,12 +390,11 @@ fn test_minimize() {
 
 fn logistic_regression_path(args: &LogisticRegressionPathArgs) -> Array1<f64> {
     let n_samples = args.xs.nrows();
-    let mut n_features = args.xs.ncols();
     let classes = args.classes;
     let pos_class = classes.first().unwrap();
 
     // v1.6.1 _logistic.py#375
-    // For binary problems coef.shape[0] should be 1
+    // For binary problems coef.shape[0] should be 1.
     let n_classes = if classes.len() <= 2 { 1 } else { todo!() };
     let coef = Array1::<f64>::zeros(n_classes);
     if coef.len() != n_classes {
@@ -411,11 +410,6 @@ fn logistic_regression_path(args: &LogisticRegressionPathArgs) -> Array1<f64> {
     let sw_sum = n_samples;
     // v1.6.1 _logistic.py#423
     let target = y_bin;
-
-    // v1.6.1 _logistic.py#348
-    if args.fit_intercept {
-        n_features += 1;
-    }
 
     let l2_reg_strength = 1.0 / (args.c_ * sw_sum as f64);
     let w_min = minimize(&args.xs, &target, l2_reg_strength, args.fit_intercept);
@@ -445,6 +439,7 @@ impl Estimator for LogisticRegression {
 
         if n_classes == 2 {
             classes = classes[1..].to_vec();
+            n_classes = 1;
         }
 
         let n_features = if self.fit_intercept {

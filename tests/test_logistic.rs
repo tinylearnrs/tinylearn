@@ -36,7 +36,7 @@ fn test_logistic_regression() {
     assert_abs_diff_eq!(
         fitresult.coefficients,
         &array![[4.86734, 0.037258]],
-        epsilon = 1.5
+        epsilon = 0.5
     );
     assert_abs_diff_eq!(fitresult.intercepts, &array![-14.52750], epsilon = 1.5);
 }
